@@ -1,0 +1,344 @@
+dataq.q1235 1 1
+dataq.q1235 0 1
+dataq.q1235 1 2
+dataq.q1235 2 4
+dataq.q1235 3 6
+dataq.q1235 4 6
+dataq.q1235 5 8
+dataq.q1235 6 9
+dataq.q1235 6 10
+  10      q1235   6
+dataq.NSA 0 10
+  10        NSA   0
+dataq.archive 0 10
+  10    archive   0
+dataq.q1235 7 12
+dataq.q1335 1 14
+dataq.q1235 6 14
+dataq.q1335 0 14
+dataq.q1235 7 15
+dataq.q1235 8 16
+dataq.q1235 8 20
+  20      q1235   8
+dataq.NSA 0 20
+  20        NSA   0
+dataq.archive 0 20
+  20    archive   0
+dataq.q1335 1 21
+dataq.q1235 7 21
+dataq.q1335 2 26
+dataq.q1235 6 26
+dataq.q1235 6 30
+  30      q1235   6
+dataq.NSA 0 30
+  30        NSA   0
+dataq.archive 0 30
+  30    archive   0
+dataq.q1435 1 32
+dataq.q1335 1 32
+dataq.q1435 0 32
+dataq.q1335 2 33
+dataq.q1235 5 33
+dataq.q1335 3 38
+dataq.q1235 4 38
+dataq.q1235 4 40
+  40      q1235   4
+dataq.NSA 0 40
+  40        NSA   0
+dataq.archive 0 40
+  40    archive   0
+dataq.q1435 1 43
+dataq.q1335 2 43
+dataq.q1735 1 44
+dataq.q1435 0 44
+dataq.q1735 0 44
+dataq.q1335 3 49
+dataq.q1235 3 49
+dataq.q1235 3 50
+  50      q1235   3
+dataq.NSA 0 50
+  50        NSA   0
+dataq.archive 0 50
+  50    archive   0
+dataq.q1735 1 56
+dataq.q1235 3 60
+  60      q1235   3
+dataq.NSA 0 60
+  60        NSA   0
+dataq.archive 0 60
+  60    archive   0
+dataq.q1435 1 61
+dataq.q1335 2 61
+dataq.q1435 0 61
+dataq.q1335 3 62
+dataq.q1235 2 62
+dataq.q8335 1 63
+dataq.q1735 0 63
+dataq.q8335 0 63
+dataq.q1435 1 66
+dataq.q1335 2 66
+dataq.q1235 2 70
+  70      q1235   2
+dataq.NSA 0 70
+  70        NSA   0
+dataq.archive 0 70
+  70    archive   0
+dataq.q1735 1 71
+dataq.q1435 0 71
+dataq.q1435 1 75
+dataq.q1335 1 75
+dataq.archive 1 76
+dataq.q8335 1 78
+dataq.q1735 0 78
+dataq.q8335 0 78
+dataq.q1335 2 80
+dataq.q1235 1 80
+  80      q1235   1
+dataq.NSA 0 80
+  80        NSA   0
+dataq.archive 1 80
+  80    archive   1
+dataq.q1235 1 80
+dataq.q1735 1 82
+dataq.q1435 0 82
+dataq.archive 2 85
+dataq.q8335 1 86
+dataq.q1735 0 86
+dataq.q8335 0 86
+dataq.q1435 1 90
+dataq.q1235 1 90
+  90      q1235   1
+dataq.NSA 0 90
+  90        NSA   0
+dataq.archive 2 90
+  90    archive   2
+dataq.q1735 1 90
+dataq.q1335 1 90
+dataq.q1435 0 90
+dataq.q1735 2 96
+dataq.q1335 2 97
+dataq.q1235 0 97
+dataq.q1235 0 100
+ 100      q1235   0
+dataq.NSA 0 100
+ 100        NSA   0
+dataq.archive 2 100
+ 100    archive   2
+dataq.q8335 1 102
+dataq.archive 3 102
+dataq.q1735 1 102
+dataq.q8335 0 102
+dataq.q1435 1 103
+dataq.q1335 1 103
+dataq.q1435 0 103
+dataq.q1235 0 110
+ 110      q1235   0
+dataq.NSA 0 110
+ 110        NSA   0
+dataq.archive 3 110
+ 110    archive   3
+dataq.q8335 1 110
+dataq.q1435 1 110
+dataq.q1735 0 110
+dataq.q1335 0 110
+dataq.q1335 1 116
+dataq.q1735 1 117
+dataq.q1435 0 117
+dataq.archive 4 119
+dataq.q8335 0 119
+dataq.q1235 0 120
+ 120      q1235   0
+dataq.NSA 0 120
+ 120        NSA   0
+dataq.archive 4 120
+ 120    archive   4
+dataq.q1435 1 121
+dataq.q1335 0 121
+dataq.q1735 2 124
+dataq.q1435 0 124
+dataq.archive 5 125
+dataq.q8335 1 126
+dataq.q1735 1 126
+dataq.q8335 0 126
+dataq.q1235 0 130
+ 130      q1235   0
+dataq.NSA 0 130
+ 130        NSA   0
+dataq.archive 5 130
+ 130    archive   5
+dataq.q1435 1 133
+dataq.q8335 1 133
+dataq.q1735 0 133
+dataq.q1735 1 138
+dataq.archive 6 138
+dataq.q1435 0 138
+dataq.q8335 0 138
+dataq.q1235 0 140
+ 140      q1235   0
+dataq.NSA 0 140
+ 140        NSA   0
+dataq.archive 6 140
+ 140    archive   6
+dataq.q8335 1 141
+dataq.q1735 0 141
+dataq.q1235 0 150
+ 150      q1235   0
+dataq.NSA 0 150
+ 150        NSA   0
+dataq.archive 6 150
+ 150    archive   6
+dataq.archive 7 151
+dataq.q8335 0 151
+dataq.q1735 1 155
+dataq.q8335 1 160
+dataq.q1235 0 160
+ 160      q1235   0
+dataq.NSA 0 160
+ 160        NSA   0
+dataq.archive 7 160
+ 160    archive   7
+dataq.q1735 0 160
+dataq.archive 8 167
+dataq.q8335 0 167
+dataq.q1235 0 170
+ 170      q1235   0
+dataq.NSA 0 170
+ 170        NSA   0
+dataq.archive 8 170
+ 170    archive   8
+dataq.q8335 1 170
+dataq.q1235 0 180
+ 180      q1235   0
+dataq.NSA 0 180
+ 180        NSA   0
+dataq.archive 8 180
+ 180    archive   8
+dataq.archive 9 183
+dataq.q8335 0 183
+dataq.q1235 0 190
+ 190      q1235   0
+dataq.NSA 0 190
+ 190        NSA   0
+dataq.archive 9 190
+ 190    archive   9
+dataq.archive 10 199
+dataq.q1235 0 200
+ 200      q1235   0
+dataq.NSA 0 200
+ 200        NSA   0
+dataq.archive 10 200
+ 200    archive  10
+dataq.q1235 0 210
+ 210      q1235   0
+dataq.NSA 0 210
+ 210        NSA   0
+dataq.archive 10 210
+ 210    archive  10
+dataq.q1235 0 220
+ 220      q1235   0
+dataq.NSA 0 220
+ 220        NSA   0
+dataq.archive 10 220
+ 220    archive  10
+dataq.q1235 0 230
+ 230      q1235   0
+dataq.NSA 0 230
+ 230        NSA   0
+dataq.archive 10 230
+ 230    archive  10
+dataq.q1235 0 240
+ 240      q1235   0
+dataq.NSA 0 240
+ 240        NSA   0
+dataq.archive 10 240
+ 240    archive  10
+dataq.q1235 0 250
+ 250      q1235   0
+dataq.NSA 0 250
+ 250        NSA   0
+dataq.archive 10 250
+ 250    archive  10
+dataq.q1235 0 260
+ 260      q1235   0
+dataq.NSA 0 260
+ 260        NSA   0
+dataq.archive 10 260
+ 260    archive  10
+dataq.q1235 0 270
+ 270      q1235   0
+dataq.NSA 0 270
+ 270        NSA   0
+dataq.archive 10 270
+ 270    archive  10
+dataq.q1235 0 280
+ 280      q1235   0
+dataq.NSA 0 280
+ 280        NSA   0
+dataq.archive 10 280
+ 280    archive  10
+dataq.q1235 0 290
+ 290      q1235   0
+dataq.NSA 0 290
+ 290        NSA   0
+dataq.archive 10 290
+ 290    archive  10
+dataq.q1235 0 300
+ 300      q1235   0
+dataq.NSA 0 300
+ 300        NSA   0
+dataq.archive 10 300
+ 300    archive  10
+dataq.q1235 0 310
+ 310      q1235   0
+dataq.NSA 0 310
+ 310        NSA   0
+dataq.archive 10 310
+ 310    archive  10
+dataq.q1235 0 320
+ 320      q1235   0
+dataq.NSA 0 320
+ 320        NSA   0
+dataq.archive 10 320
+ 320    archive  10
+dataq.q1235 0 330
+ 330      q1235   0
+dataq.NSA 0 330
+ 330        NSA   0
+dataq.archive 10 330
+ 330    archive  10
+dataq.q1235 0 340
+ 340      q1235   0
+dataq.NSA 0 340
+ 340        NSA   0
+dataq.archive 10 340
+ 340    archive  10
+dataq.q1235 0 350
+ 350      q1235   0
+dataq.NSA 0 350
+ 350        NSA   0
+dataq.archive 10 350
+ 350    archive  10
+dataq.q1235 0 360
+ 360      q1235   0
+dataq.NSA 0 360
+ 360        NSA   0
+dataq.archive 10 360
+ 360    archive  10
+dataq.q1235 0 370
+ 370      q1235   0
+dataq.NSA 0 370
+ 370        NSA   0
+dataq.archive 10 370
+ 370    archive  10
+dataq.q1235 0 380
+ 380      q1235   0
+dataq.NSA 0 380
+ 380        NSA   0
+dataq.archive 10 380
+ 380    archive  10
+dataq.q1235 0 390
+ 390      q1235   0
+dataq.NSA 0 390
+ 390        NSA   0
+dataq.archive 10 390
+ 390    archive  10
