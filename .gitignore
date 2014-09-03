@@ -1,3 +1,13 @@
 OBSOLETE/
 __pycache__/
 
+# Backup files
+*~
+\#*\#
+
+# Smoke test
+tests/*.out
+tests/*.clean
+tests/*.diff
+
+

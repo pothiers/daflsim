@@ -5,7 +5,7 @@
 #  More details.
 
 '''\
-Simulate data-flow from instruments to archive.
+Simulate data-flow from instruments to NSA (archive) .
 '''
 
 '''
@@ -14,6 +14,13 @@ Resources we might simulate usage for:
 - RAM 
 - disk space
 - network bandwidth
+
+Simulate modules on significant machines from all 5 sites:
+  - KP 
+  - TU 
+  - CT
+  - CP
+  - LS
 '''
 
 import sys
@@ -23,13 +30,85 @@ import logging
 import simpy
 import random
 
+import actions 
+
 cfg = dict(
     queue_capacity   = 40, # max number of records in queue
-    monitor_interval = 10, # seconds between checking queue
+    monitor_interval = 1, # seconds between checking queue
+    cron = dict(
+        # host_action_readPort = 'minute hour' ;first two fields in crontab
+        # dtskp
+        iclient_1235 = '35 *', 
+        ibundle_1335 = '0 *',
+
+        # dtstuc
+        iclient_6135 = '35 *',  # guessed !!!
+        ibundle_6235 = '0 *',   # guessed !!!
+        
+        # dsan3
+        iunbundle_1435 = '*/10 *',
+        iunbundle_2635 = '*/10 *',
+        iunbundle_6435 = '*/5 *',
+        iclient_1735   = '*/6 *',
+        iclient_1934   = '* *',
+        iclient_9435   = '*/5 *',
+        ibundle_1535   = '*/10 *',
+        submit_to_archive2_8335    = '*/2 *',
+        resubmit_8336  = '0 10',  # 0 10 * * *
+        
+        # dsas3
+        iunbundle_1635 = '*/10 *',
+        iunbundle_3435 = '*/10 *',
+        iunbundle_2435 = '*/10 *',
+        iclient_9635   = '*/5 *',        
+        )
 )
 
-mon = None # !!!
+monitor = None # !!!
 
+# Minutes since start of hour
+def minutesThisHour(nowSeconds):
+    return(int((nowSeconds/60) % 60))
+
+# Hours since start of day
+def hoursThisDay(nowSeconds):
+    return(int((nowSeconds/60) % (60*24)/60))
+
+    
+# Return number of seconds until a cron job using the spec containing 
+# "<minute> <hour> * * *" would fire.
+# APPROXIMATE: Only implements pieces of cron date/time matching we need.
+def next_cron(nowSeconds, cronstr):
+    '''
+    nowSeconds:: seconds since start of simulation
+    cronstr:: "minute hour"; either can be N or "*" or "*/<step>"
+    '''
+    def parseStep(str):
+        n,*stepList = str.split('/')
+        return(0 if (n == '*') else int(n),
+               1 if (0 == len(stepList)) else int(stepList[0]))
+    def remTime(nowTime, times, timeStep):
+        if times == 0:
+            # for "*/5 *"
+            return(timeStep - (nowTime + times) % timeStep)
+        else:
+            # for "35 *"
+            return(times - (nowTime % times))
+
+
+        
+    minute,hour = cronstr.split()
+
+    nowMinutes = minutesThisHour(nowSeconds)
+    minutes,minuteStep = parseStep(minute)
+    delayMinutes = remTime(nowMinutes, minutes, minuteStep)
+
+    nowHours = hoursThisDay(nowSeconds)
+    hours,hourStep = parseStep(hour)
+    delayHours = remTime(nowHours, hours, hourStep)
+
+    return delayMinutes*60+ delayHours*60*60
+    
 
 def print_stats(msg, res):
     print('#'*55)
@@ -52,7 +131,7 @@ def print_stats(msg, res):
 #   timestamp:: Unix epoch (seconds since 1970-01-01 00:00:00 UTC)
 #   value:: float
 def feed_graphite(path, value, timestamp):
-    log = mon.file if mon else sys.stdout
+    log = monitor.file if monitor else sys.stdout
     print('%s %s %d' % (path, value, timestamp), file=log)
 
 class Monitor():
@@ -64,14 +143,14 @@ class Monitor():
 
 def q_in(when, src, q, data=None):
     q.put(data or 'NA')
-    feed_graphite('dataq.%s'%q.name, len(q.items), when)          
+    #feed_graphite('dataq.%s'%q.name, len(q.items), when)          
     print('# %s -> %s'%(src, q.name))
 
 # BROKEN; returns generator object instead of msg value
 def q_out(when, dest, q):
     msg = yield q.get()
     print('# %s -> %s'%(q.name, dest))
-    feed_graphite('dataq.%s'%q.name, len(q.items), when)          
+    #feed_graphite('dataq.%s'%q.name, len(q.items), when)          
     return msg
 
 
@@ -97,12 +176,18 @@ class Dataq(simpy.Store):
         super().__init__(env,capacity=capacity)
     
 # CONSUMER, PRODUCER
-def dataAction(env, name, inq, outq):
+def dataAction(env, action, inq, outq):
+    name = action.__name__
+    inport = inq.name[-4:] #!!! Bad to count on naming scheme!
     while True:
+        start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
+        yield env.timeout(start_delay)
+        print('start_delay=',start_delay)
+
         msg = yield inq.get()
         #! msg = q_out(env.now, name, inq)
         print('# %s -> %s'%(inq.name, name))
-        feed_graphite('dataq.%s'%inq.name, len(inq.items), env.now)          
+        #feed_graphite('dataq.%s'%inq.name, len(inq.items), env.now)          
 
         print('# %04d [%s]: Do action against: %s' %(env.now, name, msg))
         yield env.timeout(random.randint(5,20))
@@ -115,72 +200,93 @@ def dataAction(env, name, inq, outq):
             q_in(env.now, name, outq, data=msg)
 
 def monitorQ(env, dataq, delay=cfg['monitor_interval']):
-    log = mon.file if mon else sys.stdout
+    log = monitor.file if monitor else sys.stdout
     while True:
         yield env.timeout(delay)
         feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
-        print('# %04d [%s]: %s %d ITEMS:'% (env.now,
-                                           'monitorQ',
-                                           dataq.name,
-                                           len(dataq.items)),
-              dataq.items
-          )
-        print('%4d %10s %3d'%(env.now,dataq.name,len(dataq.items)), file=log)
+        logging.debug('# %04d [%s]: %s %d ITEMS:'% (env.now,
+                                                    'monitorQ',
+                                                    dataq.name,
+                                                    len(dataq.items)),
+                      dataq.items
+                  )
         
 def setup(env):
     random.seed(42) # make it reproducible?
 
-    q1235 = Dataq(env,'q1235')
-    q1335 = Dataq(env,'q1335')
-    q1435 = Dataq(env,'q1435')
-    q1535 = Dataq(env,'q1535')
-    q1735 = Dataq(env,'q1735')
-    q8335 = Dataq(env,'q8335')
-    q8336 = Dataq(env,'q8336')
-    archive = Dataq(env,'archive')
-    nsa = Dataq(env,'NSA')
-    env.process( monitorQ(env, q1235) )
-    env.process( monitorQ(env, nsa) )
-    env.process( monitorQ(env, archive) )
+    q1235 = Dataq(env,'dtskp.q1235')
+    q1335 = Dataq(env,'dtskp.q1335')
+    q1435 = Dataq(env,'dtskp.q1435')
 
+    q6135 = Dataq(env,'dtstuc.q6135')
+    q6235 = Dataq(env,'dtstuc.q6235')
+    q6435 = Dataq(env,'dtstuc.q6435')
+
+    q1535 = Dataq(env,'dsan3.q1535')
+    q1735 = Dataq(env,'dsan3.q1735')
+    q8335 = Dataq(env,'dsan3.q8335')
+    q8336 = Dataq(env,'dsan3.q8336')
+    q9435 = Dataq(env,'dsan3.q9435')
+    nsa   = Dataq(env,'dsan3.NSA')
+
+    q1635 = Dataq(env,'dsas3.q1635')
+    q2435 = Dataq(env,'dsas3.q2435')
+    q2535 = Dataq(env,'dsas3.q2535')
+    q2635 = Dataq(env,'dsas3.q2635')
+    q2735 = Dataq(env,'dsas3.q2735')
+    q3435 = Dataq(env,'dsas3.q3435')
+    q9635 = Dataq(env,'dsas3.q9635')
+
+    unk3 = Dataq(env,'dsas3.UNKNOWN')
+
+    for q in [q1235, q1335, q1435, q6135, q6235, q6435, 
+              q1535, q1735, q8335, q8336, q8336, nsa,
+              q2535, q2635, q2735, q3435, q9635,]:
+        env.process( monitorQ(env, q) )
 
     env.process(camera(env, 'DECam', q1235))
     env.process(camera(env, 'KPCam', q1235))
+    env.process(camera(env, 'pipeline?', q6135))
+
+    
 
     # Simulate pop from In-Queue, do action, push to Out-Queue
-    #                             ACTION      IN-Q   OUT-Q 
-    env.process( dataAction(env, 'iclient',   q1235, q1335) )
-    env.process( dataAction(env, 'ibundle',   q1335, q1435) )
-    #! env.process( dataAction(env, 'iunbundle', q1435, archive) )
-    env.process( dataAction(env, 'iunbundle', q1435, q1735) )
-    #! env.process( dataAction(env, 'iclient',   q1735, [q8335,q1535]) )
-    env.process( dataAction(env, 'iclient',   q1735, q8335) )
-    #!env.process( dataAction(env, 'submit',    q8335, [q8336, nsa]) )
-    env.process( dataAction(env, 'submit',    q8335, archive) )
-    env.process( dataAction(env, 'resubmit',  q8336, q8335) )
+    #                            ACTION                      IN-Q   OUT-Q 
+    env.process( dataAction(env, actions.iclient,            q1235, q1335) )
+    env.process( dataAction(env, actions.ibundle,            q1335, q1435) )
+    env.process( dataAction(env, actions.iunbundle,          q1435, q1735) )
+    env.process( dataAction(env, actions.iclient,            q1735, [q8335,q1535]) )
+    env.process( dataAction(env, actions.submit_to_archive2, q8335, [q8336, nsa]) )
+    #! env.process( dataAction(env, actions.resubmit,        q8336, q8335) )
+    env.process( dataAction(env, actions.ibundle,            q1535, q1635) )
+    env.process( dataAction(env, actions.iunbundle,          q1635, q9635) )
+    env.process( dataAction(env, actions.iclient,            q9635, unk3) )
+                                                             
+    env.process( dataAction(env, actions.iclient,            q6135, q6235) )    
+    env.process( dataAction(env, actions.ibundle,            q6235, q6435) )    
+    env.process( dataAction(env, actions.iunbundle,          q6435, q1735) )
 
-
-    return archive
+    return nsa
 
 def simulate():
     env = simpy.Environment()
-
     archive = setup(env)
-    env.run(until=400)
-    print_stats('Simulation done. ARCHIVE:',archive)            
+    #!env.run(until=400)
+    env.run(until=1e5)
+    print_stats('Simulation done. NSA (archive):',archive)            
 
     
 
 ##############################################################################
 
 def main():
-    global mon
+    global monitor
     #!print('EXECUTING: %s\n\n' % (string.join(sys.argv)))
     parser = argparse.ArgumentParser(
         description='My shiny new python program',
         epilog='EXAMPLE: %(prog)s a b"'
         )
-    parser.add_argument('--version', action='version',  version='1.0.1')
+    parser.add_argument('--version', action='version',  version='1.1.0')
     #!parser.add_argument('infile', type=argparse.FileType('r'),
     #!                    help='Input file')
     parser.add_argument('monitor', type=argparse.FileType('w'),
@@ -208,9 +314,9 @@ def main():
                         )
     logging.debug('Debug output is enabled in %s !!!', sys.argv[0])
 
-    mon = Monitor(args.monitor)
+    monitor = Monitor(args.monitor)
     simulate()
-    mon.close()
+    monitor.close()
 
 if __name__ == '__main__':
     main()
