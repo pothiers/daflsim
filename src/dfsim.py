@@ -28,39 +28,48 @@ import string
 import argparse
 import logging
 import simpy
+
 import random
 
 import actions 
+import literate
+
+from pprint import pprint
 
 cfg = dict(
     queue_capacity   = 40, # max number of records in queue
-    monitor_interval = 1, # seconds between checking queue
+    monitor_interval = 5, # seconds between checking queue
     cron = dict(
+        stb_none      = '* *',
+        unbundle_none = '* *',
+
         # host_action_readPort = 'minute hour' ;first two fields in crontab
         # dtskp
-        iclient_1235 = '35 *', 
-        ibundle_1335 = '0 *',
+        client_1235 = '35 *', 
+        bundle_1335 = '0 *',
 
         # dtstuc
-        iclient_6135 = '35 *',  # guessed !!!
-        ibundle_6235 = '0 *',   # guessed !!!
+        client_6135 = '35 *',  # guessed CRON !!!
+        bundle_6235 = '0 *',   # guessed CRON !!!
         
         # dsan3
-        iunbundle_1435 = '*/10 *',
-        iunbundle_2635 = '*/10 *',
-        iunbundle_6435 = '*/5 *',
-        iclient_1735   = '*/6 *',
-        iclient_1934   = '* *',
-        iclient_9435   = '*/5 *',
-        ibundle_1535   = '*/10 *',
+        unbundle_1435 = '*/10 *',
+        unbundle_2635 = '*/10 *',
+        unbundle_6435 = '*/5 *',
+        client_1735   = '*/6 *',
+        client_1934   = '* *',
+        client_9435   = '*/5 *',
+        bundle_1535   = '*/10 *',
         submit_to_archive2_8335    = '*/2 *',
         resubmit_8336  = '0 10',  # 0 10 * * *
         
         # dsas3
-        iunbundle_1635 = '*/10 *',
-        iunbundle_3435 = '*/10 *',
-        iunbundle_2435 = '*/10 *',
-        iclient_9635   = '*/5 *',        
+        unbundle_1635 = '*/10 *',
+        unbundle_3435 = '*/10 *',
+        unbundle_2435 = '*/10 *',
+        client_9635   = '*/5 *',        
+        client_2735   = '*/5 *',   # guessed CRON !!!
+        bundle_2535   = '*/5 *',   # guessed CRON !!!
         )
 )
 
@@ -110,18 +119,34 @@ def next_cron(nowSeconds, cronstr):
     return delayMinutes*60+ delayHours*60*60
     
 
-def print_stats(msg, res):
+def print_summary(env):
+    global q_list
     print('#'*55)
-    print('### ', msg)
+    print('Simulation done.')
+
+    qmap = dict() # qmap[name] = Dataq
+    for dq in q_list:
+        qmap[dq.name] = dq
+        
+    print('Max size of queues during sim:')
+    for name in sorted(qmap.keys()):
+        print('  %15s: %d\t%s'
+              %(name,
+                qmap[name].hiwater,
+                'WARNING: unused' if qmap[name].hiwater == 0 else ''
+            ))
+    print()
+        
+
+    archive = qmap['dsan3.NSA']
     print('%d of %d get slots are allocated.' 
-          % (len(res.get_queue),res.capacity))
-    #! print('Get Queued events: %s'%res.get_queue)
+          % (len(archive.get_queue),archive.capacity))
 
     print('%d of %d put slots are allocated.' 
-          % (len(res.put_queue),res.capacity))
+          % (len(archive.put_queue),archive.capacity))
 
-    print('Queued %d ITEMS:'% len(res.items), sorted(res.items))
-    print('#'*55)
+    print('Queued %d ITEMS:'% len(archive.items), sorted(archive.items))
+
 
 
 # Example plaintext feed to Graphite:
@@ -158,31 +183,36 @@ def q_out(when, dest, q):
 def camera(env, name, dataq, shots=5):
     '''Generates data records such as pictures, but could be any instrument 
 in the telescope. '''
+    logging.debug('Starting "%s" CAMERA to generate %d pictures. Send to %s'
+                  %(name,shots,dataq.name))
     for cid in range(shots):
         yield env.timeout(random.randint(1,7))
         msg = '%s.id%d.png' % (name, cid)
         q_in(env.now, name, dataq, data=msg)
-
         print('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
-        #! print_stats('after yield',dataq)
-        #! print('%d: [%s] saved data' %(env.now, name))
-    #!print_stats('Cameras put to dataq',dataq)        
 
+
+q_list = list()
 class Dataq(simpy.Store):
     '''Data Queue.'''
+    global q_list
     def __init__(self, env, name, capacity=cfg['queue_capacity']):
+        logging.debug('Creating dataq: %s'%name)
         self.env = env
         self.name = name
+        self.hiwater = 0
         super().__init__(env,capacity=capacity)
+        q_list.append(self)
     
 # CONSUMER, PRODUCER
-def dataAction(env, action, inq, outq):
+def dataAction(env, action, inq, outqList):
     name = action.__name__
-    inport = inq.name[-4:] #!!! Bad to count on naming scheme!
+    inport = inq.name[-4:] if inq else 'none'#!!! Bad to count on naming scheme!
+    logging.debug('Starting dataAction (%s) connecting %s to %s'
+                  %(name, inport,','.join([q.name for q in outqList])))
     while True:
         start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
         yield env.timeout(start_delay)
-        print('start_delay=',start_delay)
 
         msg = yield inq.get()
         #! msg = q_out(env.now, name, inq)
@@ -190,25 +220,24 @@ def dataAction(env, action, inq, outq):
         #feed_graphite('dataq.%s'%inq.name, len(inq.items), env.now)          
 
         print('# %04d [%s]: Do action against: %s' %(env.now, name, msg))
-        yield env.timeout(random.randint(5,20))
-        if isinstance(outq,list):
-            for dq in outq:
-                #! dq.put(msg)
-                q_in(env.now, name, dq, data=msg)
-        else:
-            #! outq.put(msg)
+        #!yield env.timeout(random.randint(5,20))
+        logging.debug('START %s'%(name))
+        action(msg)
+        logging.debug('END %s'%(name))
+        for outq in outqList:
             q_in(env.now, name, outq, data=msg)
+            logging.debug('%s submitted message to %s'%(name,outq.name))
 
 def monitorQ(env, dataq, delay=cfg['monitor_interval']):
     log = monitor.file if monitor else sys.stdout
     while True:
         yield env.timeout(delay)
+        dataq.hiwater = max(dataq.hiwater,len(dataq.items))
         feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
-        logging.debug('# %04d [%s]: %s %d ITEMS:'% (env.now,
+        logging.debug('# %04d [%s]: %s %d ITEMS'% (env.now,
                                                     'monitorQ',
                                                     dataq.name,
-                                                    len(dataq.items)),
-                      dataq.items
+                                                    len(dataq.items))
                   )
         
 def setup(env):
@@ -251,29 +280,108 @@ def setup(env):
     
 
     # Simulate pop from In-Queue, do action, push to Out-Queue
-    #                            ACTION                      IN-Q   OUT-Q 
-    env.process( dataAction(env, actions.iclient,            q1235, q1335) )
-    env.process( dataAction(env, actions.ibundle,            q1335, q1435) )
-    env.process( dataAction(env, actions.iunbundle,          q1435, q1735) )
-    env.process( dataAction(env, actions.iclient,            q1735, [q8335,q1535]) )
-    env.process( dataAction(env, actions.submit_to_archive2, q8335, [q8336, nsa]) )
-    #! env.process( dataAction(env, actions.resubmit,        q8336, q8335) )
-    env.process( dataAction(env, actions.ibundle,            q1535, q1635) )
-    env.process( dataAction(env, actions.iunbundle,          q1635, q9635) )
-    env.process( dataAction(env, actions.iclient,            q9635, unk3) )
+    #                            ACTION               IN-Q   OUT-Q 
+    env.process( dataAction(env, actions.client,     q1235, [q1335]) )
+    env.process( dataAction(env, actions.bundle,     q1335, [q1435]) )
+    env.process( dataAction(env, actions.unbundle,   q1435, [q1735]) )
+    env.process( dataAction(env, actions.client,     q1735, [q8335,q1535]) )
+    env.process( dataAction(env, actions.submit_to_archive2,
+                                                      q8335, [q8336, nsa]) )
+    #! env.process( dataAction(env, actions.resubmit, q8336, [q8335]) )
+    env.process( dataAction(env, actions.bundle,     q1535, [q1635]) )
+    env.process( dataAction(env, actions.unbundle,   q1635, [q9635]) )
+    env.process( dataAction(env, actions.client,     q9635, [unk3]) )
                                                              
-    env.process( dataAction(env, actions.iclient,            q6135, q6235) )    
-    env.process( dataAction(env, actions.ibundle,            q6235, q6435) )    
-    env.process( dataAction(env, actions.iunbundle,          q6435, q1735) )
+    env.process( dataAction(env, actions.client,     q6135, [q6235]) )    
+    env.process( dataAction(env, actions.bundle,     q6235, [q6435]) )    
+    env.process( dataAction(env, actions.unbundle,   q6435, [q1735]) )
 
     return nsa
 
-def simulate():
+# return target node
+def downstreamMatch(G, startNode, targetNodeType, maxHop=4):
+    if maxHop == 0:
+        return(None)
+    if G.node[startNode].get('type') == targetNodeType:
+        return(startNode)
+    else:
+        for n in G.successors(startNode):
+            return(downstreamMatch(G, n, targetNodeType, maxHop=maxHop-1))
+            
+def setupDataflowNetwork(env, dotfile):
+    random.seed(42) # make it reproducible?
+    nqLUT = dict() # nqLUT[node] = Dataq instance
+    activeProcesses = 0
+
+    G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
+    pprint(G.nodes(data=True))
+
+    for n,d in G.nodes(data=True):
+        if d.get('type') == 'q':
+            host = 'dtskp' # STUB!!!
+            q = Dataq(env,'%s.%s'%(host,n))
+            nqLUT[n] = q
+            activeProcesses += 1
+            env.process( monitorQ(env, q) )
+    for n,d in G.nodes(data=True):
+        if d.get('type') == 'a':
+            func = eval('actions.'+d.get('action'))
+            inqs = [nqLUT.get(pn, None) for pn in G.predecessors(n)]
+            
+            activeProcesses += 1
+            env.process( dataAction(env, 
+                                    func, 
+                                    inqs[0] if (len(inqs) > 0) else None ,
+                                    [nqLUT.get(sn, None)
+                                     for sn in G.successors(n)]
+                                    ))
+        if d.get('type') == 's':
+            prefix='DECam'
+            qnode = downstreamMatch(G, n, 'q')
+            activeProcesses += 1
+            env.process(camera(env, prefix, nqLUT[qnode]))
+        if d.get('type') == 't':
+            pass
+        if d.get('type') == 'd':
+            pass
+    
+    logging.debug('%d processes started'%(activeProcesses))
+    logging.debug('Next event starts at: %s'%(env.peek()))
+    return None # nsa
+
+def tt():
+    global monitor
+    monitor = Monitor(open('graphite-debug.data','w'))
+    logging.basicConfig(level=getattr(logging, 'DEBUG', None),
+                        format='%(levelname)s %(message)s',
+                        datefmt='%m-%d %H:%M'
+                        )
+    #!dotfile='sdm-data-flow.dot'
+    dotfile='/home/pothiers/org/src-tangles/sdm-dataflow.dot'
     env = simpy.Environment()
-    archive = setup(env)
+    setupDataflowNetwork(env, dotfile)
+    print('event schedule queue = ',)
+    pprint(env._queue)
+    env.run(until=1e5)
+    print_summary(env)
+    
+def simulate0():
+    env = simpy.Environment()
+    setup(env)
+
+    print('event schedule queue = ',)
+    pprint(env._queue)
+
     #!env.run(until=400)
     env.run(until=1e5)
-    print_stats('Simulation done. NSA (archive):',archive)            
+    print_summary(env)
+
+def simulate(dotfile):
+    env = simpy.Environment()
+    setupDataflowNetwork(env, dotfile)
+    #!env.run(until=400)
+    env.run(until=1e5)
+    print_summary(env)
 
     
 
@@ -287,8 +395,8 @@ def main():
         epilog='EXAMPLE: %(prog)s a b"'
         )
     parser.add_argument('--version', action='version',  version='1.1.0')
-    #!parser.add_argument('infile', type=argparse.FileType('r'),
-    #!                    help='Input file')
+    parser.add_argument('infile', type=argparse.FileType('r'),
+                        help='Graphviz (dot) file. Spec for dataflow network.')
     parser.add_argument('monitor', type=argparse.FileType('w'),
                         help='Output output'
                         )
@@ -315,7 +423,7 @@ def main():
     logging.debug('Debug output is enabled in %s !!!', sys.argv[0])
 
     monitor = Monitor(args.monitor)
-    simulate()
+    simulate(infile)
     monitor.close()
 
 if __name__ == '__main__':
