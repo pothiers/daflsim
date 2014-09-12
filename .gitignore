@@ -10,8 +10,6 @@ tests/*.clean
 tests/*.diff
 
 
-
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
