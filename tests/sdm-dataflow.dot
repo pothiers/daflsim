@@ -1,0 +1,211 @@
+
+// Ports for queues mostly from dsan3:/noaosw/zdts/conf/queueports
+// Connections to ports mostly from COMMENTS in crontabs
+
+digraph june2014flow {
+    rankdir="TD";
+    size="4,7";
+    dpi="300";
+    edge [len=1.0]; 
+
+                
+    // UNKNOWNS !!!  Replace these with known module
+    node [shape="plaintext", fillcolor="red", style="filled"];
+    //unk0 [label="UNKNOWN", comment="type='s'"];
+    //unk1 [label="UNKNOWN", comment="type='s'"];
+    //unk2 [label="UNKNOWN", comment="type='s'"];
+    //unk3 [label="UNKNOWN", comment="type='s'"];
+    unk4 [label="UNKNOWN", comment="type='s'"];
+    NOWHERE1 [label="NO PORT", fillcolor="yellow", shape="house", comment="type='t'"];
+    node [style=""];
+
+    // Other machines (I've traced into, but not through)
+    node [shape="box", peripheries="2"];
+    q6435 [label="dtstuc:6435", comment="type='q'"];
+    q1535 [label="dsan3:1535", comment="type='q'"];
+    q1735 [label="dsas3:1735", comment="type='q'"];
+    // Forward references
+    q1635 [label="dsan3:1635", comment="type='q'"];
+
+        
+    subgraph cluster_dtscp {
+        label="Cerro Pachon - dtscp.ctio.noao.edu";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q3135 [label="dtscp:3135", comment="type='q'"];
+        q3335 [label="dtscp:3335", comment="type='q'"];
+        q3435 [label="dtscp:3435", comment="type='q'"];
+        
+        node [shape="ellipse", peripheries="1"];
+        instrument4 [label="Instrument", shape="invhouse",
+                     comment="type='s'"];
+        stb4 [shape="box3d",label="iSTB", comment="action='stb'"];
+
+        client4 [label="client", comment="action='client'"];
+        bundle4 [label="bundle", comment="action='bundle'"];
+
+        instrument4 -> stb4 -> q3135 -> client4 -> q3335 -> bundle4 -> q3435;
+    }
+
+    subgraph cluster_dtsct {
+        label="Cerro Tololo - dtsct.ctio.noao.edu";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q2135 [label="dtsct:2135", comment="type='q'"];
+        q2335 [label="dtsct:2335", comment="type='q'"];
+        q2435 [label="dtsct:2435", comment="type='q'"];
+
+        node [shape="ellipse", peripheries="1"];
+        instrument5 [label="Instrument", shape="invhouse",
+                     comment="type='s'"];
+        stb5 [shape="box3d",label="iSTB", comment="action='stb'"];
+        client5 [label="client", comment="action='client'"];
+        bundle5 [label="bundle", comment="action='bundle'"];
+
+        instrument5 -> stb5 -> q2135 -> client5 -> q2335 -> bundle5 -> q2435;
+        
+    }
+
+
+    subgraph cluster_dsas3 {
+        label="La Sarena - dsas3.ctio.noao.edu";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q2535 [label="dsas3:2535", comment="type='q'"];
+        q2635 [label="dsas3:2635", comment="type='q'"];
+        q2735 [label="dsas3:2735", comment="type='q'"];
+        q9635 [label="dsas3:9635", comment="type='q'"];
+
+        node [shape="ellipse", peripheries="1"];
+        unbundle01 [label="unbundle\n(0,10)", comment="action='unbundle'"];
+        unbundle02 [label="unbundle\n(0,10)", comment="action='unbundle'"];
+        unbundle03 [label="unbundle\n(0,10)", comment="action='unbundle'"];
+
+        client01 [label="client\n(0,5)", comment="action='client'"];
+        client02 [label="client\n(0,5)", comment="action='client'"];
+
+        bundle01 [label="bundle\n(0,10)", comment="action='bundle'"];
+
+        q1635 -> unbundle01 -> q9635;
+        q2435 -> unbundle02 -> q2735;
+        q3435 -> unbundle03 -> q2735;
+        
+        q2735 -> client01 -> q2535 -> bundle01 -> q2635;
+        q9635 -> client02 -> NOWHERE1;
+        // per /scpc:dsas3.ctio.noao.edu:/usr/local/dcidata/lib/iDciConfig
+        // "9635 => [],"
+
+    }
+
+    subgraph cluster_dtskp {
+        rankdir="LR";
+        // On machine: dtskp  (Data Transfer Service - Kitt Peak)
+        label="Kitt Peak - dtskp";
+        style="solid";
+        node [shape="box", peripheries="2"];
+        q1235 [label="Register Q\ndtskp:1235", comment="type='q'"];
+        q1335 [label="Bundle Q\ndtskp:1335", comment="type='q'"];
+        q1435 [label="Pending Q\n(tarballs)\ndtskp:1435", comment="type='q'"];
+        //! dtskp [shape=record,
+        //!        label="{<p1235> 1235|<p1335> 1335|<p1435> 1435}| DciTrackD\ndtskp"];
+        
+        node [peripheries="1"];
+        irod_dtskp [shape="box3d", label="iROD",
+                    comment="type='d'"];
+        instrument1 [label="Instrument", shape="invhouse",
+                     comment="type='s'"];
+        stb1 [shape="box3d",label="iSTB", comment="action='stb'"];
+    
+
+
+        node [shape="ellipse", peripheries="1"];
+        client1 [label="client\n(35,60)", comment="action='client'"];
+        bundle1 [label="bundle\n(0,60)", comment="action='bundle'"];
+        
+        // Data-flow
+        //! DciArchT-> dtskp:p1235 [label="tracks"];
+        //! dtskp:p1235 -> client1 -> dtskp:p1335 -> bundle1 -> dtskp:p1435;
+        instrument1 -> stb1 -> q1235 -> client1 -> q1335 -> bundle1 -> q1435;
+        client1 -> irod_dtskp [label="ireg file"];
+        bundle1 -> irod_dtskp [label="ireg tarball"];
+    }
+    
+    // dtstuc.tuc.noao.edu
+    subgraph cluster_dtstuc {
+        label="Tucson - dtstuc";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q6135 [label="dtstuc:6135", comment="type='q'"];
+        q6235 [label="dtstuc:6235", comment="type='q'"];
+        q6435 [label="dtstuc:6435", comment="type='q'"];
+
+        node [shape="ellipse", peripheries="1"];
+        client3 [label="client", comment="action='client'"];
+        bundle3 [label="bundle", comment="action='bundle'"];
+        pipeline [shape="box3d",label="pipeline", comment="type='s'"];
+        stb2 [shape="box3d",label="iSTB", comment="action='stb'"];
+        
+        pipeline -> stb2 [label="LPR"];
+        stb2 -> q6135 -> client3 -> q6235 -> bundle3 -> q6435;
+    }
+    
+
+    subgraph cluster_dsan3 {
+        rankdir="LR";
+        //  On machine: dsan3  
+        label="Tucson - dsan3";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        //! q1935; // The queue file for q1935 has timestamp from 2012.
+                   // Considered it dead
+        q1934 [label="dsan3:1934", comment="type='q'"];
+        q8335 [label="dsan3:8335", comment="type='q'"];
+        q9435 [label="dsan3:9435", comment="type='q'"];
+        //! q4235;  // Define, not used
+        q8336 [label="dsan3:8336", comment="type='q'"];
+        storage [label="Storage", shape="none", peripheries="1", style="",
+                 comment="type='d'"];
+        irod_dsan3 [shape="box3d",peripheries="1",label="iROD",
+                    comment="type='d'"];
+
+        NSA [label="NSA", shape="octagon", peripheries="2", color="blue",
+             comment="type='t'"    ];
+
+        node [shape="ellipse", peripheries="1"];
+        client21 [label="client\n(0,5)", comment="action='client'"];
+        client22 [label="client\n(0,6)", comment="action='client'"];
+        client23 [label="client\n(0,1)", comment="action='client'"];
+
+        bundle21 [label="bundle\n(0,10)", comment="action='bundle'"];
+
+        unbundle21 [label="unbundle\n(0,10)", comment="action='unbundle'"];
+        unbundle22 [label="unbundle\n(0,5)",  comment="action='unbundle'"];
+        unbundle23 [label="unbundle\n(0,10)", comment="action='unbundle'"];
+
+        submit [label="submit_to_archive\n(0,2)",
+                comment="action='submit_to_archive'"];
+        resubmit [label="resubmit_to_archive\n(600,1440)", // 10:00am
+                  comment="action='resubmit'"];
+        
+        q9435 -> client21 -> q8335 -> submit -> NSA;
+        submit -> q8336 -> resubmit -> q8335;
+            
+        q1735 -> client22 -> {q8335;q1535};
+        q1535 ->  bundle21 -> q1635;
+
+        {q1435;irod_dtskp} -> unbundle21 -> {q1735;storage;irod_dsan3};
+        {q6435;irod_dtskp} -> unbundle22 -> {q1735;storage;irod_dsan3};
+        {q2635;irod_dtskp} -> unbundle23 -> {q9435;storage;irod_dsan3};
+
+        q1934 -> client23 -> q8335;
+
+        unk4 -> q1934;
+    }
+
+    
+}

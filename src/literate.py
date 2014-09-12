@@ -82,6 +82,14 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
         # Determine TYPE from type specific attributs
         if ('action' in ud):
             ud['type'] = 'a'
+
+        if 'type' not in ud:
+            raise RuntimeError('Node %s (%s) does not have a type! (%s)'
+                               %(n,d,dotfile))
+        if ud['type'] not in allowedNodeTypes:
+            raise RuntimeError('Node %s (%s, file: %s) has invalid type. Expecting one of: %s'
+                               %(n,d,dotfile,','.join(allowedNodeTypes)))
+
             
         # Validate dotfile
         if 'type' not in ud:

@@ -239,9 +239,9 @@ def dataAction(env, action, inp, outqList):
         start_delay = 5 #!!! speed things up
         logging.debug('[dataAction] delay %s seconds; %s %s'%(start_delay, env.now, name))
         yield env.timeout(start_delay)
+        logging.debug('[dataAction] DONE delay')
         msg = 'NA'
         if isinstance(inp,Dataq):
-            logging.debug('[dataAction] DONE delay')
             logging.debug('[dataAction] inq.get()')
             msg = yield inp.get()
             logging.debug('[dataAction] DONE inp.get()')
@@ -339,7 +339,7 @@ def downstreamMatch(G, startNode, targetNodeType, maxHop=4):
 def setupDataflowNetwork(env, dotfile):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
-    nsLUT = dict() # nsLUT[node] = Source generator
+    nsLUT = dict() # nsLUT[node] = Source event
     activeProcesses = 0
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
@@ -358,8 +358,7 @@ def setupDataflowNetwork(env, dotfile):
             qnode = downstreamMatch(G, n, 'q')
             activeProcesses += 1
             inst = instrument(env, prefix)
-            nsLUT[n] = inst
-            env.process(inst)
+            nsLUT[n] = env.process(inst)
             
     for n,d in G.nodes(data=True):
         if d.get('type') == 'a':
@@ -384,12 +383,15 @@ def setupDataflowNetwork(env, dotfile):
                         'ACTION input must be a QUEUE. Got "%s" (node: "%s")'%
                         (G.node[preds[0]]['type'],preds[0]))
 
-            env.process(dataAction(env, 
-                                   func, 
-                                   inp,
-                                   [nqLUT[sn] for sn in G.successors(n)
-                                    if (sn in nqLUT)]
-                               )) 
+            action_event = env.process(
+                dataAction(env, 
+                           func, 
+                           inp,
+                           [nqLUT[sn] for sn in G.successors(n)
+                            if (sn in nqLUT)]
+                       ))
+            if not isinstance(inp,Dataq):
+                inp.callbacks.append(inp.trigger(action_event))
 
                                  
         if d.get('type') == 't':

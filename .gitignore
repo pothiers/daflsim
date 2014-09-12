@@ -3,6 +3,7 @@ OBSOLETE/
 # Backup files
 *~
 \#*\#
+.\#*
 
 # Smoke test
 tests/*.out
