@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 ## @package pyexample
 #  Documentation for this module. (for DOXYGEN)
 #
@@ -36,10 +36,12 @@ import literate
 
 from pprint import pprint
 
-cfg = dict(
+
+cfg = dict( # MOVE TO DOTFILE!!!
     queue_capacity   = 40, # max number of records in queue
     monitor_interval = 5, # seconds between checking queue
     cron = dict(
+        # action_inport
         stb_none      = '* *',
         unbundle_none = '* *',
 
@@ -70,6 +72,12 @@ cfg = dict(
         client_9635   = '*/5 *',        
         client_2735   = '*/5 *',   # guessed CRON !!!
         bundle_2535   = '*/5 *',   # guessed CRON !!!
+
+        # dtsct
+        bundle_2335   = '*/5 *',   # guessed CRON !!!
+        client_2135   = '*/5 *',   # guessed CRON !!!
+        # dtscp
+        bundle_3335   = '*/5 *',   # guessed CRON !!!
         )
 )
 
@@ -191,6 +199,18 @@ in the telescope. '''
         q_in(env.now, name, dataq, data=msg)
         print('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
 
+# data PRODUCER  (generator)
+def instrument(env, name, count=5):
+    '''Generates data records such as pictures, but could be any instrument 
+in the telescope. '''
+    logging.debug('Starting "%s" INSTRUMENT to generate %d files.'
+                  %(name,count))
+    for cid in range(count):
+        yield env.timeout(random.randint(1,7))
+        msg = '%s.id%d.png' % (name, cid)
+        print('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
+        return msg
+
 
 q_list = list()
 class Dataq(simpy.Store):
@@ -205,21 +225,29 @@ class Dataq(simpy.Store):
         q_list.append(self)
     
 # CONSUMER, PRODUCER
-def dataAction(env, action, inq, outqList):
+def dataAction(env, action, inp, outqList):
     name = action.__name__
-    inport = inq.name[-4:] if inq else 'none'#!!! Bad to count on naming scheme!
-    logging.debug('Starting dataAction (%s) connecting %s to %s'
+    if isinstance(inp,Dataq):
+        inport = inp.name[-4:]  #!!! Bad to count on naming scheme!
+    else:
+        inport = inp
+    logging.debug('[dataAction] outqList=%s'%(outqList))
+    logging.debug('[dataAction] Starting (%s) connecting %s to %s'
                   %(name, inport,','.join([q.name for q in outqList])))
     while True:
-        start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
+        #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
+        start_delay = 5 #!!! speed things up
+        logging.debug('[dataAction] delay %s seconds; %s %s'%(start_delay, env.now, name))
         yield env.timeout(start_delay)
+        msg = 'NA'
+        if isinstance(inp,Dataq):
+            logging.debug('[dataAction] DONE delay')
+            logging.debug('[dataAction] inq.get()')
+            msg = yield inp.get()
+            logging.debug('[dataAction] DONE inp.get()')
+            print('# %s -> %s'%(inp.name, name))
 
-        msg = yield inq.get()
-        #! msg = q_out(env.now, name, inq)
-        print('# %s -> %s'%(inq.name, name))
-        #feed_graphite('dataq.%s'%inq.name, len(inq.items), env.now)          
-
-        print('# %04d [%s]: Do action against: %s' %(env.now, name, msg))
+        print('# %04d [%s]: Do action using record: %s' %(env.now, name, msg))
         #!yield env.timeout(random.randint(5,20))
         logging.debug('START %s'%(name))
         action(msg)
@@ -311,6 +339,7 @@ def downstreamMatch(G, startNode, targetNodeType, maxHop=4):
 def setupDataflowNetwork(env, dotfile):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
+    nsLUT = dict() # nsLUT[node] = Source generator
     activeProcesses = 0
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
@@ -324,47 +353,54 @@ def setupDataflowNetwork(env, dotfile):
             activeProcesses += 1
             env.process( monitorQ(env, q) )
     for n,d in G.nodes(data=True):
-        if d.get('type') == 'a':
-            func = eval('actions.'+d.get('action'))
-            inqs = [nqLUT.get(pn, None) for pn in G.predecessors(n)]
-            
-            activeProcesses += 1
-            env.process( dataAction(env, 
-                                    func, 
-                                    inqs[0] if (len(inqs) > 0) else None ,
-                                    [nqLUT.get(sn, None)
-                                     for sn in G.successors(n)]
-                                    ))
         if d.get('type') == 's':
             prefix='DECam'
             qnode = downstreamMatch(G, n, 'q')
             activeProcesses += 1
-            env.process(camera(env, prefix, nqLUT[qnode]))
+            inst = instrument(env, prefix)
+            nsLUT[n] = inst
+            env.process(inst)
+            
+    for n,d in G.nodes(data=True):
+        if d.get('type') == 'a':
+            activeProcesses += 1
+            func = eval('actions.'+d.get('action'))
+            preds = [p for p in G.predecessors(n)
+                     if ((G.node[p]['type'] == 'q') 
+                         or (G.node[p]['type'] == 's') )]
+            if len(preds) == 0:
+                return None
+            elif len([p for p in preds if G.node[p]['type'] == 'q']) > 1:
+                raise RuntimeError(
+                    'Action can only be connected to one queue. Got %d (%s)'%
+                    (len(preds),n))
+            else:
+                if preds[0] in nqLUT:
+                    inp = nqLUT[preds[0]]
+                elif preds[0] in nsLUT:
+                    inp = nsLUT[preds[0]]
+                else:
+                    raise RuntimeError(
+                        'ACTION input must be a QUEUE. Got "%s" (node: "%s")'%
+                        (G.node[preds[0]]['type'],preds[0]))
+
+            env.process(dataAction(env, 
+                                   func, 
+                                   inp,
+                                   [nqLUT[sn] for sn in G.successors(n)
+                                    if (sn in nqLUT)]
+                               )) 
+
+                                 
         if d.get('type') == 't':
-            pass
+            pass #!!!
         if d.get('type') == 'd':
-            pass
+            pass #!!!
     
     logging.debug('%d processes started'%(activeProcesses))
     logging.debug('Next event starts at: %s'%(env.peek()))
     return None # nsa
 
-def tt():
-    global monitor
-    monitor = Monitor(open('graphite-debug.data','w'))
-    logging.basicConfig(level=getattr(logging, 'DEBUG', None),
-                        format='%(levelname)s %(message)s',
-                        datefmt='%m-%d %H:%M'
-                        )
-    #!dotfile='sdm-data-flow.dot'
-    dotfile='/home/pothiers/org/src-tangles/sdm-dataflow.dot'
-    env = simpy.Environment()
-    setupDataflowNetwork(env, dotfile)
-    print('event schedule queue = ',)
-    pprint(env._queue)
-    env.run(until=1e5)
-    print_summary(env)
-    
 def simulate0():
     env = simpy.Environment()
     setup(env)
