@@ -41,6 +41,8 @@ shape = dict(
     )
 
 def drawDfGraph(G,figTitle='SDM Dataflow'):
+    plt.ion()
+
     fig = plt.figure()
     pos = nx.graphviz_layout(G,prog='dot')
     for ntype in 'qastd':
@@ -56,6 +58,7 @@ def drawDfGraph(G,figTitle='SDM Dataflow'):
     #!f = plt.gcf()
     fig.suptitle(figTitle)    
     #f.canvas.mpl_connect('button_press_event',onmousedown)
+    plt.show()
     return(fig)
     
 def loadDataflow(dotfile, outgraphml='foo.graphml'):
@@ -113,6 +116,7 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
 def drawDataflow(dotfile, outgraphml):
     G = loadDataflow(dotfile, outgraphml)
     fig = drawDfGraph(G)
+    plt.show()
     return G,fig
 
 ##############################################################################

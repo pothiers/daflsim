@@ -35,6 +35,7 @@ import actions
 import literate
 
 from pprint import pprint
+import networkx as nx
 
 
 cfg = dict( # MOVE TO DOTFILE!!!
@@ -174,8 +175,8 @@ class Monitor():
     def close(self):
         self.file.close()
 
-def q_in(when, src, q, data=None):
-    q.put(data or 'NA')
+def q_in(when, src, q, data):
+    q.put(data)
     #feed_graphite('dataq.%s'%q.name, len(q.items), when)          
     print('# %s -> %s'%(src, q.name))
 
@@ -196,7 +197,7 @@ in the telescope. '''
     for cid in range(shots):
         yield env.timeout(random.randint(1,7))
         msg = '%s.id%d.png' % (name, cid)
-        q_in(env.now, name, dataq, data=msg)
+        q_in(env.now, name, dataq, msg)
         print('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
 
 # data PRODUCER  (generator)
@@ -253,7 +254,7 @@ def dataAction(env, action, inp, outqList):
         action(msg)
         logging.debug('END %s'%(name))
         for outq in outqList:
-            q_in(env.now, name, outq, data=msg)
+            q_in(env.now, name, outq, msg)
             logging.debug('%s submitted message to %s'%(name,outq.name))
 
 def monitorQ(env, dataq, delay=cfg['monitor_interval']):
@@ -336,13 +337,17 @@ def downstreamMatch(G, startNode, targetNodeType, maxHop=4):
         for n in G.successors(startNode):
             return(downstreamMatch(G, n, targetNodeType, maxHop=maxHop-1))
             
-def setupDataflowNetwork(env, dotfile):
+def setupDataflowNetwork(env, dotfile, draw=True):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
     nsLUT = dict() # nsLUT[node] = Source event
     activeProcesses = 0
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
+    print(nx.info(G))
+    if draw:
+        print('Displaying dataflow graph')
+        fig = literate.drawDfGraph(G)
     pprint(G.nodes(data=True))
 
     for n,d in G.nodes(data=True):
@@ -391,7 +396,12 @@ def setupDataflowNetwork(env, dotfile):
                             if (sn in nqLUT)]
                        ))
             if not isinstance(inp,Dataq):
-                inp.callbacks.append(inp.trigger(action_event))
+                def triggerAction(foo):
+                    action_event.trigger(action_event)
+                #inp.callbacks.append()
+                #inp.callbacks.append(triggerAction)
+                #!inp.callbacks.append(action_event)
+                #!inp.trigger(action_event)
 
                                  
         if d.get('type') == 't':
