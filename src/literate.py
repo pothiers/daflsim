@@ -19,6 +19,9 @@ from pprint import pprint
 import matplotlib.pyplot as plt
 import networkx as nx
 
+# These are GRAPHVIZ attribute names subverted for our own use!
+clustProps='comment'
+nodeProps='tooltip'
 
 def onpick(event):
     thisline = event.artist
@@ -72,16 +75,23 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
     saveNodeDict = G.graph['node']
     saveEdgeDict = G.graph['edge']
 
-    defaultNodeDict = dict(delay=0, duration=0, host='dsan3')
-    defaultEdgeDict = dict(delay=0, host='dsan3', port='0000')
+    defaultNodeDict = dict(delay=0, duration=0, host='NA-host')
+    defaultEdgeDict = dict(delay=0, host='NA-host', port='0000')
     G.graph = {} # containts DICT VALUES that are dict, bad for graphml
     if outgraphml != None:
         nx.write_graphml(G,outgraphml)
 
     for n,d in G.nodes_iter(data=True):
         dd = defaultNodeDict.copy()
-        ud = eval('dict(%s)'%(d['comment'])) if 'comment' in d else dict()
-        
+
+        npd = eval('dict(%s)'%(d[nodeProps])) if nodeProps in d else dict()
+        cpd = eval('dict(%s)'%(d[clustProps])) if clustProps in d else dict()
+        #print('cpd=',cpd)
+        #ud = eval('dict(%s)'%(d[nodeProps])) if nodeProps in d else dict()   
+        ud = dict()
+        #ud.update(cpd.copy())
+        ud.update(npd.copy())
+
         # Determine TYPE from type specific attributs
         if ('action' in ud):
             ud['type'] = 'a'
@@ -95,9 +105,13 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
 
             
         # Validate dotfile
+        if 'host' not in ud:
+            raise RuntimeError(
+                'No "host" attribute found in node=%s %s ("%s")'
+                %(n,d,dotfile))
         if 'type' not in ud:
             raise RuntimeError(
-                'No "type" attribute found in comment of node=%s %s ("%s")'
+                'No "type" attribute found in node=%s %s ("%s")'
                 %(n,d,dotfile))
         if (ud['type'] == 'a') and (ud.get('action') == None):
             raise RuntimeError('Node %s: type="a", but no ACTION ("%s")'
@@ -110,6 +124,7 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
                 raise Exception('Node "%s" as type="a", but no "action" field'
                                 %(n))
             d['action'] = dd['action']
+        d['host'] = dd['host']
 
     return G
 

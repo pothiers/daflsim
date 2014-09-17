@@ -27,9 +27,12 @@ import sys
 import string
 import argparse
 import logging
-import simpy
-
+from enum import Enum
 import random
+from collections import defaultdict
+import functools
+
+import simpy
 
 import actions 
 import literate
@@ -222,9 +225,66 @@ class Dataq(simpy.Store):
         self.env = env
         self.name = name
         self.hiwater = 0
+        self.simType = 'q'
         super().__init__(env,capacity=capacity)
         q_list.append(self)
+
+
     
+class DciInstrument():
+    '''Generates data records, such as pictures. '''
+
+    def __init__(self, env, name, cpu, count=5 ):
+        self.env = env
+        self.name = name
+        self.cpu = cpu
+        self.count = count
+        self.simType = 's'
+
+        #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
+        self. start_delay = 5 #!!! speed things up
+
+        logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
+
+    def generate(self,out_pipe):
+        '''Generates data records such as pictures, but could be any instrument 
+        in the telescope. '''
+        logging.debug('Starting "%s" INSTRUMENT to generate %d files.'
+                      %(self.name,self.count))
+        for cid in range(self.count):
+            logging.debug('DBG-2')
+            yield self.env.timeout(1) #!!! config
+            msg = '%s.id%d.png' % (self.name, cid)
+            out_pipe.put(msg)
+            print('# %04d [%s]: Generated data: %s'
+                  %(self.env.now, self.name, msg))
+
+class DciAction():
+    def __init__(self, env, action, cpu):
+        self.env = env
+        self.action = action
+        self.cpu = cpu
+        self.name = self.action.__name__
+        self.simType = 'a'
+
+        #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
+        self. start_delay = 5 #!!! speed things up
+        logging.debug('[DciAction] Initializing (%s)'%(self.name,))
+
+    def generate(self, in_pipe,out_pipe):
+        logging.debug('DBG-3')
+        while True:
+            # Get event for message pipe
+            msg = yield in_pipe.get()
+
+            logging.debug('[dataAction] delay %s seconds; %s %s'
+                          %(self.start_delay, self.env.now, self.name))
+            yield self.env.timeout(self.start_delay)
+            result = self.action(msg)
+            logging.debug('END %s'%(self.name))
+            out_pipe.put(result)
+
+
 # CONSUMER, PRODUCER
 def dataAction(env, action, inp, outqList):
     name = action.__name__
@@ -263,11 +323,8 @@ def monitorQ(env, dataq, delay=cfg['monitor_interval']):
         yield env.timeout(delay)
         dataq.hiwater = max(dataq.hiwater,len(dataq.items))
         feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
-        logging.debug('# %04d [%s]: %s %d ITEMS'% (env.now,
-                                                    'monitorQ',
-                                                    dataq.name,
-                                                    len(dataq.items))
-                  )
+        #!logging.debug('# %04d [monitorQ]: %s %d ITEMS'
+        #!              % (env.now, dataq.name, len(dataq.items)))
         
 def setup(env):
     random.seed(42) # make it reproducible?
@@ -337,11 +394,25 @@ def downstreamMatch(G, startNode, targetNodeType, maxHop=4):
         for n in G.successors(startNode):
             return(downstreamMatch(G, n, targetNodeType, maxHop=maxHop-1))
             
-def setupDataflowNetwork(env, dotfile, draw=True):
+class SimType(Enum):
+    generator = 1
+    resource = 2
+
+def setupDataflowNetwork(env, dotfile, draw=False):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
     nsLUT = dict() # nsLUT[node] = Source event
     activeProcesses = 0
+
+    nodeLUT = dict() # nodeLUT[node] = simInstance
+    simTypeLUT = dict( # LUT[nodeType] = simType
+        s = SimType.generator,
+        q = SimType.resource,
+        a = SimType.generator,
+        t = SimType.resource,
+        d = SimType.resource
+        )
+
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
     print(nx.info(G))
@@ -350,64 +421,103 @@ def setupDataflowNetwork(env, dotfile, draw=True):
         fig = literate.drawDfGraph(G)
     pprint(G.nodes(data=True))
 
-    for n,d in G.nodes(data=True):
+    cpuLUT = dict() # cpuLUT[hostname] = resource
+    for n,d in G.nodes_iter(data=True):
+        simType = simTypeLUT[d.get('type')]
+        cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
+
+        if d.get('type') == 's':
+            sourceName='DECam'
+            #!qnode = downstreamMatch(G, n, 'q')
+            activeProcesses += 1
+            #!inst = instrument(env, prefix)
+            #!nsLUT[n] = env.process(inst)
+            nodeLUT[n] = DciInstrument(env,sourceName,cpu)
+
         if d.get('type') == 'q':
-            host = 'dtskp' # STUB!!!
-            q = Dataq(env,'%s.%s'%(host,n))
-            nqLUT[n] = q
+            q = Dataq(env,'%s.%s'%(d['host'],n))
             activeProcesses += 1
             env.process( monitorQ(env, q) )
-    for n,d in G.nodes(data=True):
-        if d.get('type') == 's':
-            prefix='DECam'
-            qnode = downstreamMatch(G, n, 'q')
-            activeProcesses += 1
-            inst = instrument(env, prefix)
-            nsLUT[n] = env.process(inst)
-            
-    for n,d in G.nodes(data=True):
-        if d.get('type') == 'a':
-            activeProcesses += 1
-            func = eval('actions.'+d.get('action'))
-            preds = [p for p in G.predecessors(n)
-                     if ((G.node[p]['type'] == 'q') 
-                         or (G.node[p]['type'] == 's') )]
-            if len(preds) == 0:
-                return None
-            elif len([p for p in preds if G.node[p]['type'] == 'q']) > 1:
-                raise RuntimeError(
-                    'Action can only be connected to one queue. Got %d (%s)'%
-                    (len(preds),n))
-            else:
-                if preds[0] in nqLUT:
-                    inp = nqLUT[preds[0]]
-                elif preds[0] in nsLUT:
-                    inp = nsLUT[preds[0]]
-                else:
-                    raise RuntimeError(
-                        'ACTION input must be a QUEUE. Got "%s" (node: "%s")'%
-                        (G.node[preds[0]]['type'],preds[0]))
+            nodeLUT[n] = Dataq(env,'%s.%s'%(d['host'],n))
+            env.process( monitorQ(env, nodeLUT[n]) )
 
-            action_event = env.process(
-                dataAction(env, 
-                           func, 
-                           inp,
-                           [nqLUT[sn] for sn in G.successors(n)
-                            if (sn in nqLUT)]
-                       ))
-            if not isinstance(inp,Dataq):
-                def triggerAction(foo):
-                    action_event.trigger(action_event)
-                #inp.callbacks.append()
-                #inp.callbacks.append(triggerAction)
-                #!inp.callbacks.append(action_event)
-                #!inp.trigger(action_event)
+        if d.get('type') == 'a':
+            func = eval('actions.'+d.get('action'))
+            nodeLUT[n] = DciAction(env, func,cpu)
+
+
+        if d.get('type') == 't':
+            pass
+        if d.get('type') == 'd':
+            pass
+    #! print('nodeLUT',nodeLUT)
+    
+    # "link" elements of simulation based upon type of edge
+    # Edge type is ordered char pair of black/white node type.
+    edgeTypeCnt = defaultdict(int) # diag!!!
+    for u,v in G.edges_iter():
+        etype = G.node[u]['type'] + G.node[v]['type']
+        edgeTypeCnt[etype] += 1 # diag!!!
+        logging.debug('Process edge [%s,%s]; type="%s"'%(u,v,etype))
+        if etype == 'sa':
+            source = nodeLUT[u]
+            action = nodeLUT[v]
+            if  source.cpu != action.cpu:
+                raise RuntimeError(
+                    'Connected Source-Action must use same host. %s/%s %s/%s'
+                    %(u,G.node[u]['host'],v,G.node[v]['host']))
+
+            pipe = simpy.Store(env,capacity=1)
+            next_pipe = simpy.Store(env,capacity=1)
+            env.process(source.generate(pipe))
+            env.process(action.generate(pipe,next_pipe))
+
+
+        elif etype == 'ss':
+            assert nodeLUT[u][1].cpu == nodeLUT[v][1].cpu
+            logging.debug('DBG-1.3')
+            nodeLUT[u].generate()
+            logging.debug('DBG-1.4')
+            nodeLUT[v].generate()
+            logging.debug('DBG-1.5')            
+        else:
+            print('Not simulating edge of type:',etype)
+        
+        
+    print('edgeTypeCnt=',edgeTypeCnt)
+    
+#!    for n,d in G.nodes(data=True):
+#!        if d.get('type') == 'a':
+#!            activeProcesses += 1
+#!            func = eval('actions.'+d.get('action'))
+#!            preds = [p for p in G.predecessors(n)
+#!                     if ((G.node[p]['type'] == 'q') 
+#!                         or (G.node[p]['type'] == 's') )]
+#!            if len(preds) == 0:
+#!                return None
+#!            elif len([p for p in preds if G.node[p]['type'] == 'q']) > 1:
+#!                raise RuntimeError(
+#!                    'Action can only be connected to one in queue. Got %d (%s)'%
+#!                    (len(preds),n))
+#!            #!else:
+            #!    if preds[0] in nqLUT:
+            #!        inp = nqLUT[preds[0]]
+            #!    elif preds[0] in nsLUT:
+            #!        inp = nsLUT[preds[0]]
+            #!    else:
+            #!        raise RuntimeError(
+            #!            'ACTION input must be a QUEUE. Got "%s" (node: "%s")'%
+            #!            (G.node[preds[0]]['type'],preds[0]))
+            #!
+            #!action_event = env.process(
+            #!    dataAction(env, 
+            #!               func, 
+            #!               inp,
+            #!               [nqLUT[sn] for sn in G.successors(n)
+            #!                if (sn in nqLUT)]
+            #!           ))
 
                                  
-        if d.get('type') == 't':
-            pass #!!!
-        if d.get('type') == 'd':
-            pass #!!!
     
     logging.debug('%d processes started'%(activeProcesses))
     logging.debug('Next event starts at: %s'%(env.peek()))
