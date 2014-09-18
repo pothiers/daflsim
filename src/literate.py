@@ -64,6 +64,35 @@ def drawDfGraph(G,figTitle='SDM Dataflow'):
     plt.show()
     return(fig)
     
+def validateDataflowGraph(G):
+    print('WARNING: STUB; literate.validateDataflowGraph()')
+    def assertEqual(a,b,msg):
+        if a != b:
+            raise AttributeError(msg)
+    def assertLess(a,b,msg):
+        if not(a<b):
+            raise AttributeError(msg)
+            
+    
+    for n,d in G.nodes_iter(data=True):    
+        if d['type'] == 'a':
+            qins = [u for u,v in G.in_edges(n) if (G.node[u]['type'] in 'sqa')]
+            assertLess(len(qins), 2,
+                        'Action (%s) must have zero or one S,Q,A type input. %s'
+                        %(n,qins))
+
+
+    for u,v,d in G.edges_iter(data=True):
+        ud = G.node[u]	
+        vd = G.node[v]	
+        etype = ud['type'] + vd['type']
+                        
+        if etype == 'sa':
+            assertEqual(ud['host'],  vd['host'],
+                        'Source-Action must use same host. %s/%s %s/%s'
+                        %(u,ud['host'], v,vd['host']))
+
+
 def loadDataflow(dotfile, outgraphml='foo.graphml'):
     G = nx.read_dot(dotfile)
     allowedNodeTypes = set('qastd')
@@ -125,7 +154,8 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
                                 %(n))
             d['action'] = dd['action']
         d['host'] = dd['host']
-
+    
+    validateDataflowGraph(G)
     return G
 
 def drawDataflow(dotfile, outgraphml):

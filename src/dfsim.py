@@ -243,10 +243,14 @@ class DciInstrument():
 
         #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
         self. start_delay = 5 #!!! speed things up
+        self.out_pipe = None
 
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
 
-    def generate(self,out_pipe):
+    def setOutPipe(out_pipe):
+        self.out_pipe = out_pipe
+
+    def generate(self, out_pipe):
         '''Generates data records such as pictures, but could be any instrument 
         in the telescope. '''
         logging.debug('Starting "%s" INSTRUMENT to generate %d files.'
@@ -260,29 +264,40 @@ class DciInstrument():
                   %(self.env.now, self.name, msg))
 
 class DciAction():
-    def __init__(self, env, action, cpu):
+    def __init__(self, env, action, cpu, nid):
         self.env = env
         self.action = action
         self.cpu = cpu
         self.name = self.action.__name__
         self.simType = 'a'
+        self.nid = nid
 
         #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
         self. start_delay = 5 #!!! speed things up
         logging.debug('[DciAction] Initializing (%s)'%(self.name,))
 
-    def generate(self, in_pipe,out_pipe):
+
+    def generate(self, in_pipes, out_pipes):
         logging.debug('DBG-3')
+        if len(in_pipes) > 1:
+            logging.warning('More than 1 input to node: %s'%n)
+
         while True:
             # Get event for message pipe
-            msg = yield in_pipe.get()
-
+            msgList = []
+            for in_pipe in in_pipes:
+                m = yield in_pipe.get()
+                msgList.append(m)
+            msg = ','.join(msgList)
+                
             logging.debug('[dataAction] delay %s seconds; %s %s'
                           %(self.start_delay, self.env.now, self.name))
             yield self.env.timeout(self.start_delay)
+            logging.debug('START action %s; msg=%s'%(self.name, msg))
             result = self.action(msg)
-            logging.debug('END %s'%(self.name))
-            out_pipe.put(result)
+            logging.debug('END action %s; result=%s'%(self.name, result))
+            for out_pipe in out_pipes:
+                out_pipe.put(result)
 
 
 # CONSUMER, PRODUCER
@@ -297,8 +312,8 @@ def dataAction(env, action, inp, outqList):
                   %(name, inport,','.join([q.name for q in outqList])))
     while True:
         #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
-        start_delay = 5 #!!! speed things up
-        logging.debug('[dataAction] delay %s seconds; %s %s'%(start_delay, env.now, name))
+        start_delay = 1 #!!! speed things up
+        logging.debug('[dataAction] delay %s seconds; %s; %s'%(start_delay, env.now, name))
         yield env.timeout(start_delay)
         logging.debug('[dataAction] DONE delay')
         msg = 'NA'
@@ -421,70 +436,115 @@ def setupDataflowNetwork(env, dotfile, draw=False):
         fig = literate.drawDfGraph(G)
     pprint(G.nodes(data=True))
 
+
+
+
     cpuLUT = dict() # cpuLUT[hostname] = resource
     for n,d in G.nodes_iter(data=True):
         simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
 
         if d.get('type') == 's':
-            sourceName='DECam'
-            #!qnode = downstreamMatch(G, n, 'q')
-            activeProcesses += 1
-            #!inst = instrument(env, prefix)
-            #!nsLUT[n] = env.process(inst)
-            nodeLUT[n] = DciInstrument(env,sourceName,cpu)
+            sourceName='DECam' #!!!
+            d['sim'] = DciInstrument(env,sourceName,cpu)
 
         if d.get('type') == 'q':
-            q = Dataq(env,'%s.%s'%(d['host'],n))
-            activeProcesses += 1
-            env.process( monitorQ(env, q) )
-            nodeLUT[n] = Dataq(env,'%s.%s'%(d['host'],n))
-            env.process( monitorQ(env, nodeLUT[n]) )
+            d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
 
         if d.get('type') == 'a':
             func = eval('actions.'+d.get('action'))
-            nodeLUT[n] = DciAction(env, func,cpu)
-
-
+            d['sim'] = DciAction(env, func, cpu, n)
         if d.get('type') == 't':
             pass
         if d.get('type') == 'd':
             pass
-    #! print('nodeLUT',nodeLUT)
+
     
-    # "link" elements of simulation based upon type of edge
+    # Create "link" elements of simulation based upon type of edge
     # Edge type is ordered char pair of black/white node type.
     edgeTypeCnt = defaultdict(int) # diag!!!
-    for u,v in G.edges_iter():
-        etype = G.node[u]['type'] + G.node[v]['type']
+    for u,v,d in G.edges_iter(data=True):
+        ud = G.node[u]	
+        vd = G.node[v]	
+        etype = ud['type'] + vd['type']
         edgeTypeCnt[etype] += 1 # diag!!!
         logging.debug('Process edge [%s,%s]; type="%s"'%(u,v,etype))
-        if etype == 'sa':
-            source = nodeLUT[u]
-            action = nodeLUT[v]
-            if  source.cpu != action.cpu:
-                raise RuntimeError(
-                    'Connected Source-Action must use same host. %s/%s %s/%s'
-                    %(u,G.node[u]['host'],v,G.node[v]['host']))
 
-            pipe = simpy.Store(env,capacity=1)
-            next_pipe = simpy.Store(env,capacity=1)
-            env.process(source.generate(pipe))
-            env.process(action.generate(pipe,next_pipe))
-
-
-        elif etype == 'ss':
-            assert nodeLUT[u][1].cpu == nodeLUT[v][1].cpu
-            logging.debug('DBG-1.3')
-            nodeLUT[u].generate()
-            logging.debug('DBG-1.4')
-            nodeLUT[v].generate()
-            logging.debug('DBG-1.5')            
+        if (etype == 'da') :
+            pass
+        elif (etype == 'sa') :
+            d['pipe'] = simpy.Store(env,capacity=1)
+        elif (etype == 'aa'):
+            d['pipe'] = simpy.Store(env,capacity=1)
+        elif (etype == 'qa') :
+            d['pipe'] = ud['sim']
+        elif (etype == 'at') :
+            d['pipe'] = simpy.Store(env,capacity=1)
+        elif (etype == 'ad') :
+            pass
+        elif etype == 'aq':
+            d['pipe'] = vd['sim']
+        elif (etype == 'sq') :
+            d['pipe'] = vd['sim']
         else:
-            print('Not simulating edge of type:',etype)
-        
-        
+            print('WARNING: No simulation for edge of type:',etype)
     print('edgeTypeCnt=',edgeTypeCnt)
+        
+
+    # "link" elements of simulation based upon type of edge
+    # Edge type is ordered char pair of black/white node type.
+    for u,v,d in G.edges_iter(data=True):
+        ud = G.node[u]	
+        vd = G.node[v]	
+        etype = ud['type'] + vd['type']
+
+        if (etype == 'sa') :
+            source =ud['sim']
+            action = vd['sim']
+            source.setOutPipe = d['pipe']
+            action.setInPipe = d['pipe']
+        if (etype == 'aa'):
+            action1 =ud['sim']
+            action2 = vd['sim']
+            action1.setOutPipe = d['pipe']
+            action2.setInPipe = d['pipe']
+        elif etype == 'aq':
+            action = ud['sim']
+            queue  = vd['sim']
+            action.setOutPipe = d['pipe']
+        elif etype == 'qa':
+            queue  = ud['sim']
+            action = vd['sim']
+            action.setInPipe = d['pipe']
+        else:
+            print('WARNING: Not simulating edge of type:',etype)
+       
+    for n,d in G.nodes_iter(data=True):
+        simType = simTypeLUT[d.get('type')]
+        cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
+
+        if d.get('type') == 's':
+            for u,v,di in G.out_edges(n,data=True):
+                if 'pipe' not in di: 
+                    continue
+                env.process(d['sim'].generate(di['pipe']))
+        elif d.get('type') == 'q':
+            env.process( monitorQ(env, d['sim'] ))
+        elif d.get('type') == 'a':
+            in_pipes = [d0['sim']
+                        for u0,v0,d0 in G.in_edges(n,data=True)
+                        if ('sim' in d0)]
+            out_pipes = [d1['sim'] 
+                         for u,v,d1 in G.out_edges(n,data=True)
+                         if ('sim' in d1) ]
+            env.process(d['sim'].generate(in_pipes, out_pipes))
+        elif d.get('type') == 't':
+            pass
+        elif d.get('type') == 'd':
+            pass
+        else:
+            print('WARNING!!! 2')
+
     
 #!    for n,d in G.nodes(data=True):
 #!        if d.get('type') == 'a':
