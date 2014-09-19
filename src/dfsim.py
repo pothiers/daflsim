@@ -157,7 +157,7 @@ def print_summary(env):
     print('%d of %d put slots are allocated.' 
           % (len(archive.put_queue),archive.capacity))
 
-    print('Queued %d ITEMS:'% len(archive.items), sorted(archive.items))
+    print('Queued %d items in NSA:'% len(archive.items), sorted(archive.items))
 
 
 
@@ -247,16 +247,13 @@ class DciInstrument():
 
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
 
-    def setOutPipe(out_pipe):
-        self.out_pipe = out_pipe
-
-    def generate(self, out_pipe):
+    def generateData(self, out_pipe):
         '''Generates data records such as pictures, but could be any instrument 
         in the telescope. '''
+        name = self.name
         logging.debug('Starting "%s" INSTRUMENT to generate %d files.'
-                      %(self.name,self.count))
+                      %(name,self.count))
         for cid in range(self.count):
-            logging.debug('DBG-2')
             yield self.env.timeout(1) #!!! config
             msg = '%s.id%d.png' % (self.name, cid)
             out_pipe.put(msg)
@@ -277,8 +274,7 @@ class DciAction():
         logging.debug('[DciAction] Initializing (%s)'%(self.name,))
 
 
-    def generate(self, in_pipes, out_pipes):
-        logging.debug('DBG-3')
+    def generateAction(self, in_pipes, out_pipes):
         if len(in_pipes) > 1:
             logging.warning('More than 1 input to node: %s'%n)
 
@@ -286,16 +282,18 @@ class DciAction():
             # Get event for message pipe
             msgList = []
             for in_pipe in in_pipes:
-                m = yield in_pipe.get()
+                res = yield in_pipe.get()
+                m = res[0] if isinstance(res,tuple) else res
                 msgList.append(m)
+            print('DBG: action=%s msgList=%s'%(self.action.__name__,msgList))
             msg = ','.join(msgList)
                 
             logging.debug('[dataAction] delay %s seconds; %s %s'
                           %(self.start_delay, self.env.now, self.name))
             yield self.env.timeout(self.start_delay)
-            logging.debug('START action %s; msg=%s'%(self.name, msg))
             result = self.action(msg)
-            logging.debug('END action %s; result=%s'%(self.name, result))
+            logging.debug('END action "%s"; msg="%s", result="%s"'
+                          %(self.name, msg, result))
             for out_pipe in out_pipes:
                 out_pipe.put(result)
 
@@ -417,7 +415,7 @@ def setupDataflowNetwork(env, dotfile, draw=False):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
     nsLUT = dict() # nsLUT[node] = Source event
-    activeProcesses = 0
+    createdProcesses = 0
 
     nodeLUT = dict() # nodeLUT[node] = simInstance
     simTypeLUT = dict( # LUT[nodeType] = simType
@@ -434,91 +432,53 @@ def setupDataflowNetwork(env, dotfile, draw=False):
     if draw:
         print('Displaying dataflow graph')
         fig = literate.drawDfGraph(G)
+    print('Content of loaded graph:')
     pprint(G.nodes(data=True))
-
-
-
 
     cpuLUT = dict() # cpuLUT[hostname] = resource
     for n,d in G.nodes_iter(data=True):
-        simType = simTypeLUT[d.get('type')]
+        #simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
+        ntype = d.get('type')
 
-        if d.get('type') == 's':
-            sourceName='DECam' #!!!
-            d['sim'] = DciInstrument(env,sourceName,cpu)
-
-        if d.get('type') == 'q':
+        # Map node types to Simpy instances (not exhaustive)
+        if ntype == 's':
+            d['sim'] = DciInstrument(env,'DECam',cpu) #!!!
+        elif ntype == 'q':
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
-
-        if d.get('type') == 'a':
-            func = eval('actions.'+d.get('action'))
-            d['sim'] = DciAction(env, func, cpu, n)
-        if d.get('type') == 't':
-            pass
-        if d.get('type') == 'd':
-            pass
-
+        elif ntype == 'a':
+            d['sim'] = DciAction(env, eval('actions.'+d['action']), cpu, n)
+        else:
+            print('WARNING: No simulation for node of type:',ntype)
     
     # Create "link" elements of simulation based upon type of edge
-    # Edge type is ordered char pair of black/white node type.
+    # Edge type is ordered character pair of black/white node type.
     edgeTypeCnt = defaultdict(int) # diag!!!
     for u,v,d in G.edges_iter(data=True):
         ud = G.node[u]	
         vd = G.node[v]	
         etype = ud['type'] + vd['type']
         edgeTypeCnt[etype] += 1 # diag!!!
-        logging.debug('Process edge [%s,%s]; type="%s"'%(u,v,etype))
-
-        if (etype == 'da') :
-            pass
-        elif (etype == 'sa') :
+        
+        # Map edge types to Simpy "connection instances" (not exhaustive)
+        if etype == 'sa':
             d['pipe'] = simpy.Store(env,capacity=1)
-        elif (etype == 'aa'):
+        elif etype == 'aa':
             d['pipe'] = simpy.Store(env,capacity=1)
-        elif (etype == 'qa') :
+        elif etype == 'qa':
             d['pipe'] = ud['sim']
-        elif (etype == 'at') :
+        elif etype == 'at':
             d['pipe'] = simpy.Store(env,capacity=1)
-        elif (etype == 'ad') :
-            pass
         elif etype == 'aq':
             d['pipe'] = vd['sim']
-        elif (etype == 'sq') :
+        elif etype == 'sq':
             d['pipe'] = vd['sim']
         else:
             print('WARNING: No simulation for edge of type:',etype)
+            
     print('edgeTypeCnt=',edgeTypeCnt)
         
 
-    # "link" elements of simulation based upon type of edge
-    # Edge type is ordered char pair of black/white node type.
-    for u,v,d in G.edges_iter(data=True):
-        ud = G.node[u]	
-        vd = G.node[v]	
-        etype = ud['type'] + vd['type']
-
-        if (etype == 'sa') :
-            source =ud['sim']
-            action = vd['sim']
-            source.setOutPipe = d['pipe']
-            action.setInPipe = d['pipe']
-        if (etype == 'aa'):
-            action1 =ud['sim']
-            action2 = vd['sim']
-            action1.setOutPipe = d['pipe']
-            action2.setInPipe = d['pipe']
-        elif etype == 'aq':
-            action = ud['sim']
-            queue  = vd['sim']
-            action.setOutPipe = d['pipe']
-        elif etype == 'qa':
-            queue  = ud['sim']
-            action = vd['sim']
-            action.setInPipe = d['pipe']
-        else:
-            print('WARNING: Not simulating edge of type:',etype)
-       
     for n,d in G.nodes_iter(data=True):
         simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
@@ -527,29 +487,38 @@ def setupDataflowNetwork(env, dotfile, draw=False):
             for u,v,di in G.out_edges(n,data=True):
                 if 'pipe' not in di: 
                     continue
-                env.process(d['sim'].generate(di['pipe']))
+
+                env.process(d['sim'].generateData(di['pipe']))
+                createdProcesses += 1
+                print('Create DATA generator for %s. Pipe=%s'%(n,di['pipe']))
         elif d.get('type') == 'q':
             env.process( monitorQ(env, d['sim'] ))
+            createdProcesses += 1
         elif d.get('type') == 'a':
-            in_pipes = [d0['sim']
+            in_pipes = [d0['pipe']
                         for u0,v0,d0 in G.in_edges(n,data=True)
-                        if ('sim' in d0)]
-            out_pipes = [d1['sim'] 
+                        if ('pipe' in d0)]
+            out_pipes = [d1['pipe'] 
                          for u,v,d1 in G.out_edges(n,data=True)
-                         if ('sim' in d1) ]
-            env.process(d['sim'].generate(in_pipes, out_pipes))
+                         if ('pipe' in d1) ]
+            env.process(d['sim'].generateAction(in_pipes, out_pipes))
+            print('Create ACTION generator for %s. in=%s out=%s'
+                  %(n,in_pipes, out_pipes))
+            createdProcesses += 1
         elif d.get('type') == 't':
             pass
         elif d.get('type') == 'd':
             pass
         else:
-            print('WARNING!!! 2')
+            print('WARNING!!! Unexpected node type: "%s"'%(d.get('type')))
 
-    
-#!    for n,d in G.nodes(data=True):
-#!        if d.get('type') == 'a':
-#!            activeProcesses += 1
-#!            func = eval('actions.'+d.get('action'))
+    print('Created %d processes'%(createdProcesses,))
+    print('Content of sim annotated graph:')
+    print('  NODES:')
+    pprint(G.nodes(data=True))
+    print('  EDGES:')
+    pprint(G.edges(data=True))
+
 #!            preds = [p for p in G.predecessors(n)
 #!                     if ((G.node[p]['type'] == 'q') 
 #!                         or (G.node[p]['type'] == 's') )]
@@ -557,29 +526,10 @@ def setupDataflowNetwork(env, dotfile, draw=False):
 #!                return None
 #!            elif len([p for p in preds if G.node[p]['type'] == 'q']) > 1:
 #!                raise RuntimeError(
-#!                    'Action can only be connected to one in queue. Got %d (%s)'%
-#!                    (len(preds),n))
-#!            #!else:
-            #!    if preds[0] in nqLUT:
-            #!        inp = nqLUT[preds[0]]
-            #!    elif preds[0] in nsLUT:
-            #!        inp = nsLUT[preds[0]]
-            #!    else:
-            #!        raise RuntimeError(
-            #!            'ACTION input must be a QUEUE. Got "%s" (node: "%s")'%
-            #!            (G.node[preds[0]]['type'],preds[0]))
-            #!
-            #!action_event = env.process(
-            #!    dataAction(env, 
-            #!               func, 
-            #!               inp,
-            #!               [nqLUT[sn] for sn in G.successors(n)
-            #!                if (sn in nqLUT)]
-            #!           ))
+#!                  'Action can only be connected to one in queue. Got %d (%s)'%
 
-                                 
     
-    logging.debug('%d processes started'%(activeProcesses))
+    logging.debug('%d processes started'%(createdProcesses))
     logging.debug('Next event starts at: %s'%(env.peek()))
     return None # nsa
 

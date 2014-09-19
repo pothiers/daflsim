@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 # These are GRAPHVIZ attribute names subverted for our own use!
-clustProps='comment'
 nodeProps='tooltip'
 
 def onpick(event):
@@ -94,7 +93,8 @@ def validateDataflowGraph(G):
 
 
 def loadDataflow(dotfile, outgraphml='foo.graphml'):
-    G = nx.read_dot(dotfile)
+    #!G = nx.read_dot(dotfile)
+    G = nx.DiGraph(nx.read_dot(dotfile))
     allowedNodeTypes = set('qastd')
     #!pprint(G.nodes(data=True))
     #!print(G.node['q9435'])
@@ -114,14 +114,10 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
         dd = defaultNodeDict.copy()
 
         npd = eval('dict(%s)'%(d[nodeProps])) if nodeProps in d else dict()
-        cpd = eval('dict(%s)'%(d[clustProps])) if clustProps in d else dict()
-        #print('cpd=',cpd)
-        #ud = eval('dict(%s)'%(d[nodeProps])) if nodeProps in d else dict()   
         ud = dict()
-        #ud.update(cpd.copy())
-        ud.update(npd.copy())
+        ud.update(npd) # User Dictionary
 
-        # Determine TYPE from type specific attributs
+        # Determine TYPE from type specific attributes
         if ('action' in ud):
             ud['type'] = 'a'
 
@@ -153,7 +149,11 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
                 raise Exception('Node "%s" as type="a", but no "action" field'
                                 %(n))
             d['action'] = dd['action']
-        d['host'] = dd['host']
+
+        #!d['host'] = dd['host']
+        #!d['cron'] = dd['cron']
+        d.update(((k,v) for (k,v) in dd.items()
+                  if k in set(['action','host','cron'])))
     
     validateDataflowGraph(G)
     return G
