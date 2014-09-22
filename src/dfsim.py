@@ -43,7 +43,7 @@ import networkx as nx
 
 cfg = dict( # MOVE TO DOTFILE!!!
     queue_capacity   = 40, # max number of records in queue
-    monitor_interval = 5, # seconds between checking queue
+    monitor_interval = 1, # seconds between checking queue
     cron = dict(
         # action_inport
         stb_none      = '* *',
@@ -157,7 +157,8 @@ def print_summary(env):
     print('%d of %d put slots are allocated.' 
           % (len(archive.put_queue),archive.capacity))
 
-    print('Queued %d items in NSA:'% len(archive.items), sorted(archive.items))
+    print('Queued %d items in NSA:'% len(archive.items))
+    pprint(sorted(archive.items))
 
 
 
@@ -234,16 +235,16 @@ class Dataq(simpy.Store):
 class DciInstrument():
     '''Generates data records, such as pictures. '''
 
-    def __init__(self, env, name, cpu, count=5 ):
+    def __init__(self, env, name, host, cpu, count=5 ):
         self.env = env
         self.name = name
+        self.host = host
         self.cpu = cpu
         self.count = count
         self.simType = 's'
 
         #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
         self. start_delay = 5 #!!! speed things up
-        self.out_pipe = None
 
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
 
@@ -255,7 +256,7 @@ class DciInstrument():
                       %(name,self.count))
         for cid in range(self.count):
             yield self.env.timeout(1) #!!! config
-            msg = '%s.id%d.png' % (self.name, cid)
+            msg = '%s.%s.%03d.png' % (self.host,self.name, cid)
             out_pipe.put(msg)
             print('# %04d [%s]: Generated data: %s'
                   %(self.env.now, self.name, msg))
@@ -285,15 +286,15 @@ class DciAction():
                 res = yield in_pipe.get()
                 m = res[0] if isinstance(res,tuple) else res
                 msgList.append(m)
-            print('DBG: action=%s msgList=%s'%(self.action.__name__,msgList))
+            print('DBG: action=%s in-msgList=%s'%(self.nid,msgList))
             msg = ','.join(msgList)
                 
-            logging.debug('[dataAction] delay %s seconds; %s %s'
-                          %(self.start_delay, self.env.now, self.name))
+            logging.debug('[dataAction] delay %s seconds; %s@%s'
+                          %(self.start_delay, self.nid, self.env.now ))
             yield self.env.timeout(self.start_delay)
             result = self.action(msg)
             logging.debug('END action "%s"; msg="%s", result="%s"'
-                          %(self.name, msg, result))
+                          %(self.nid, msg, result))
             for out_pipe in out_pipes:
                 out_pipe.put(result)
 
@@ -443,11 +444,13 @@ def setupDataflowNetwork(env, dotfile, draw=False):
 
         # Map node types to Simpy instances (not exhaustive)
         if ntype == 's':
-            d['sim'] = DciInstrument(env,'DECam',cpu) #!!!
+            d['sim'] = DciInstrument(env,'DECam',d['host'], cpu) #!!!
         elif ntype == 'q':
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         elif ntype == 'a':
             d['sim'] = DciAction(env, eval('actions.'+d['action']), cpu, n)
+        elif ntype == 't':
+            d['sim'] = simpy.Container(env)
         else:
             print('WARNING: No simulation for node of type:',ntype)
     
