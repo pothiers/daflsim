@@ -1,9 +1,4 @@
 #! /usr/bin/env python3
-## @package pyexample
-#  Documentation for this module. (for DOXYGEN)
-#
-#  More details.
-
 '''\
 Simulate data-flow from instruments to NSA (archive) .
 '''
@@ -31,11 +26,13 @@ from enum import Enum
 import random
 from collections import defaultdict
 import functools
+import json
 
 import simpy
 
 import actions 
 import literate
+import defaultCfg
 
 from pprint import pprint
 import networkx as nx
@@ -51,50 +48,6 @@ def stepTraceFunc(event):
         print('TRACE %s: event.Process: gen=%s(locals=%s) (value=%s) %s'  
               % (event.env.now, generatorName, geninfo, event.value, xtra))
 
-
-cfg = dict( # MOVE TO DOTFILE!!!
-    queue_capacity   = 40, # max number of records in queue
-    monitor_interval = 1, # seconds between checking queue
-    cron = dict(
-        # action_inport
-        stb_none      = '* *',
-        unbundle_none = '* *',
-
-        # host_action_readPort = 'minute hour' ;first two fields in crontab
-        # dtskp
-        client_1235 = '35 *', 
-        bundle_1335 = '0 *',
-
-        # dtstuc
-        client_6135 = '35 *',  # guessed CRON !!!
-        bundle_6235 = '0 *',   # guessed CRON !!!
-        
-        # dsan3
-        unbundle_1435 = '*/10 *',
-        unbundle_2635 = '*/10 *',
-        unbundle_6435 = '*/5 *',
-        client_1735   = '*/6 *',
-        client_1934   = '* *',
-        client_9435   = '*/5 *',
-        bundle_1535   = '*/10 *',
-        submit_to_archive2_8335    = '*/2 *',
-        resubmit_8336  = '0 10',  # 0 10 * * *
-        
-        # dsas3
-        unbundle_1635 = '*/10 *',
-        unbundle_3435 = '*/10 *',
-        unbundle_2435 = '*/10 *',
-        client_9635   = '*/5 *',        
-        client_2735   = '*/5 *',   # guessed CRON !!!
-        bundle_2535   = '*/5 *',   # guessed CRON !!!
-
-        # dtsct
-        bundle_2335   = '*/5 *',   # guessed CRON !!!
-        client_2135   = '*/5 *',   # guessed CRON !!!
-        # dtscp
-        bundle_3335   = '*/5 *',   # guessed CRON !!!
-        )
-)
 
 monitor = None # !!!
 
@@ -143,12 +96,11 @@ def next_cron(nowSeconds, cronstr):
     
 
 def print_summary(env, G):
-    global q_list
     print('#'*55)
     print('Simulation done.')
 
     qmap = dict() # qmap[name] = Dataq
-    for dq in q_list:
+    for dq in Dataq.instances:
         qmap[dq.name] = dq
         
     print('Max size of queues during sim:')
@@ -230,18 +182,17 @@ in the telescope. '''
         return msg
 
 
-q_list = list()
 class Dataq(simpy.Store):
     '''Data Queue.'''
-    global q_list
-    def __init__(self, env, name, capacity=cfg['queue_capacity']):
+    instances = list()
+    def __init__(self, env, name,  capacity=float('inf')):
         logging.debug('Creating dataq: %s'%name)
         self.env = env
         self.name = name
         self.hiwater = 0
         self.simType = 'q'
         super().__init__(env,capacity=capacity)
-        q_list.append(self)
+        Dataq.instances.append(self)
 
 
     
@@ -345,7 +296,7 @@ def dataAction(env, action, inp, outqList):
             q_in(env.now, name, outq, msg)
             logging.debug('%s submitted message to %s'%(name,outq.name))
 
-def monitorQ(env, dataq, delay=cfg['monitor_interval']):
+def monitorQ(env, dataq, delay=1):
     log = monitor.file if monitor else sys.stdout
     while True:
         yield env.timeout(delay)
@@ -583,6 +534,9 @@ def main():
         epilog='EXAMPLE: %(prog)s a b"'
         )
     parser.add_argument('--version', action='version',  version='1.1.0')
+    parser.add_argument('--cfg', 
+                        help='Configuration file',
+                        type=argparse.FileType('r') )
     parser.add_argument('infile', type=argparse.FileType('r'),
                         help='Graphviz (dot) file. Spec for dataflow network.')
     parser.add_argument('monitor', type=argparse.FileType('w'),
@@ -610,6 +564,8 @@ def main():
                         datefmt='%m-%d %H:%M'
                         )
     logging.debug('Debug output is enabled in %s !!!', sys.argv[0])
+
+    cfg = defaultCfg.cfg if args.cfg is None else json.load(args.cfg)
 
     monitor = Monitor(args.monitor)
 
