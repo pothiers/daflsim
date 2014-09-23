@@ -99,18 +99,22 @@ def print_summary(env, G):
     print('#'*55)
     print('Simulation done.')
 
-    qmap = dict() # qmap[name] = Dataq
-    for dq in Dataq.instances:
-        qmap[dq.name] = dq
-        
-    print('Max size of queues during sim:')
-    for name in sorted(qmap.keys()):
-        print('  %15s: %d\t%s'
-              %(name,
-                qmap[name].hiwater,
-                'WARNING: unused' if qmap[name].hiwater == 0 else ''
-            ))
-    print()
+    if hasattr(Dataq,'putcount'):
+        qmap = dict() # qmap[name] = Dataq
+        for dq in Dataq.instances:
+            qmap[dq.name] = dq
+
+        print('Dataq use summary:')
+        print('  %15s  %5s %5s %s'%('Queue', 'Put',   'Max',  ''))
+        print('  %15s  %5s %5s %s'%('Name' , 'Count', 'Used', 'Comment'))
+        for name in sorted(qmap.keys()):
+            print('  %15s: %5d %5d %s'
+                  %(name,
+                    qmap[name].putcount,
+                    qmap[name].hiwater,
+                    'WARNING: unused' if qmap[name].hiwater == 0 else ''
+                ))
+        print()
         
 
     archive = G.node['NSA']['sim']
@@ -191,6 +195,7 @@ class Dataq(simpy.Store):
         self.name = name
         self.hiwater = 0
         self.simType = 'q'
+        self.putcount = 0
         super().__init__(env,capacity=capacity)
         Dataq.instances.append(self)
 
@@ -420,6 +425,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         else:
             print('WARNING: No simulation for node of type:',ntype)
     
+    if profile:
+        addProfiling(G)
+
     # Create "link" elements of simulation based upon type of edge
     # Edge type is ordered character pair of black/white node type.
     edgeTypeCnt = defaultdict(int) # diag!!!
@@ -523,6 +531,43 @@ def simulate(dotfile):
     print_summary(env)
 
     
+def addProfiling(G):
+    simpy.Container.instances = list()
+    Dataq.instances = list()
+
+    for n,d in G.nodes_iter(data=True):
+        if 'sim' not in d:
+            continue
+
+        si = d['sim']
+        setattr(si,'putcount', 0)
+        print('DBG si=',si)
+
+        if isinstance(si,DciAction):
+            pass
+        elif isinstance(si,Dataq):
+            # Monkey patch PUT to count messages
+            origPut = si.put
+            def put(data):
+                setattr(si,'putcount', 1 + getattr(si,'putcount',0))
+                return origPut(data)
+            si.put = put
+            Dataq.instances.append(si)
+
+        elif isinstance(si, simpy.Container):
+            # Monkey patch PUT to count messages
+            origPut = si.put
+            def put(data):
+                setattr(si,'putcount', 1 + getattr(si,'putcount',0))
+                return origPut(data)
+            si.put = put
+            simpy.Container.instances.append(si)
+        elif isinstance(si,DciInstrument):
+            pass
+        else:
+            print('WARNING: not profiling %s; %s'%(n,d))
+
+
 
 ##############################################################################
 
@@ -534,6 +579,7 @@ def main():
         epilog='EXAMPLE: %(prog)s a b"'
         )
     parser.add_argument('--version', action='version',  version='1.1.0')
+    parser.add_argument('--profile', action='store_true')
     parser.add_argument('--cfg', 
                         help='Configuration file',
                         type=argparse.FileType('r') )
@@ -542,7 +588,6 @@ def main():
     parser.add_argument('monitor', type=argparse.FileType('w'),
                         help='Output output'
                         )
-    parser.add_argument('--profile', action='store_true')
 
     parser.add_argument('--loglevel',      help='Kind of diagnostic output',
                         choices=['CRTICAL', 'ERROR', 'WARNING',
