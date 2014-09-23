@@ -64,7 +64,6 @@ def drawDfGraph(G,figTitle='SDM Dataflow'):
     return(fig)
     
 def validateDataflowGraph(G):
-    print('WARNING: STUB; literate.validateDataflowGraph()')
     def assertEqual(a,b,msg):
         if a != b:
             raise AttributeError(msg)

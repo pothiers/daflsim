@@ -41,6 +41,17 @@ from pprint import pprint
 import networkx as nx
 
 
+def stepTraceFunc(event):
+    import inspect
+    if isinstance(event,simpy.Process):
+        xtra = 'Waiting for %s'%(event.target,)
+        generatorName = event._generator.__name__
+        #!generatorSignature = inspect.signature(event._generator)
+        geninfo = inspect.getgeneratorstate(event._generator)
+        print('TRACE %s: event.Process: gen=%s(locals=%s) (value=%s) %s'  
+              % (event.env.now, generatorName, geninfo, event.value, xtra))
+
+
 cfg = dict( # MOVE TO DOTFILE!!!
     queue_capacity   = 40, # max number of records in queue
     monitor_interval = 1, # seconds between checking queue
@@ -131,7 +142,7 @@ def next_cron(nowSeconds, cronstr):
     return delayMinutes*60+ delayHours*60*60
     
 
-def print_summary(env):
+def print_summary(env, G):
     global q_list
     print('#'*55)
     print('Simulation done.')
@@ -150,15 +161,17 @@ def print_summary(env):
     print()
         
 
-    archive = qmap['dsan3.NSA']
-    print('%d of %d get slots are allocated.' 
+    archive = G.node['NSA']['sim']
+    print('%d of %s get slots are allocated.' 
           % (len(archive.get_queue),archive.capacity))
 
-    print('%d of %d put slots are allocated.' 
+    print('%d of %s put slots are allocated.' 
           % (len(archive.put_queue),archive.capacity))
 
     print('Queued %d items in NSA:'% len(archive.items))
     pprint(sorted(archive.items))
+    #print('NSA contains %d items'% (archive.level))
+
 
 
 
@@ -286,7 +299,8 @@ class DciAction():
                 res = yield in_pipe.get()
                 m = res[0] if isinstance(res,tuple) else res
                 msgList.append(m)
-            print('DBG: action=%s in-msgList=%s'%(self.nid,msgList))
+            print('DBG: action=%s in-msgList=%s inPipes=%s outPipes=%s'
+                  %(self.nid, msgList, in_pipes, out_pipes))
             msg = ','.join(msgList)
                 
             logging.debug('[dataAction] delay %s seconds; %s@%s'
@@ -412,7 +426,7 @@ class SimType(Enum):
     generator = 1
     resource = 2
 
-def setupDataflowNetwork(env, dotfile, draw=False):
+def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
     nsLUT = dict() # nsLUT[node] = Source event
@@ -450,7 +464,8 @@ def setupDataflowNetwork(env, dotfile, draw=False):
         elif ntype == 'a':
             d['sim'] = DciAction(env, eval('actions.'+d['action']), cpu, n)
         elif ntype == 't':
-            d['sim'] = simpy.Container(env)
+            #!d['sim'] = simpy.Container(env)
+            d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         else:
             print('WARNING: No simulation for node of type:',ntype)
     
@@ -534,7 +549,9 @@ def setupDataflowNetwork(env, dotfile, draw=False):
     
     logging.debug('%d processes started'%(createdProcesses))
     logging.debug('Next event starts at: %s'%(env.peek()))
-    return None # nsa
+    return G
+    # END setupDataflowNetwork()
+
 
 def simulate0():
     env = simpy.Environment()
@@ -571,6 +588,7 @@ def main():
     parser.add_argument('monitor', type=argparse.FileType('w'),
                         help='Output output'
                         )
+    parser.add_argument('--profile', action='store_true')
 
     parser.add_argument('--loglevel',      help='Kind of diagnostic output',
                         choices=['CRTICAL', 'ERROR', 'WARNING',
@@ -594,7 +612,14 @@ def main():
     logging.debug('Debug output is enabled in %s !!!', sys.argv[0])
 
     monitor = Monitor(args.monitor)
-    simulate(infile)
+
+    #!simulate(infile)
+    env = simpy.Environment()
+    simpy.util.trace(env,stepTrace=stepTraceFunc)
+    G = setupDataflowNetwork(env, args.infile, profile=args.profile)
+    env.run(until=1e3)
+    print_summary(env,G)
+
     monitor.close()
 
 if __name__ == '__main__':
