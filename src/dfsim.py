@@ -97,36 +97,40 @@ def next_cron(nowSeconds, cronstr):
 
 def print_summary(env, G):
     print('#'*55)
-    print('Simulation done.')
+    print('Simulation done at %d.'%(env.now))
 
-    if hasattr(Dataq,'putcount'):
-        qmap = dict() # qmap[name] = Dataq
-        for dq in Dataq.instances:
-            qmap[dq.name] = dq
+    qmap = dict() # qmap[name] = Dataq
+    for dq in Dataq.instances:
+        qmap[dq.name] = dq
 
-        print('Dataq use summary:')
-        print('  %15s  %5s %5s %s'%('Queue', 'Put',   'Max',  ''))
-        print('  %15s  %5s %5s %s'%('Name' , 'Count', 'Used', 'Comment'))
-        for name in sorted(qmap.keys()):
-            print('  %15s: %5d %5d %s'
-                  %(name,
-                    qmap[name].putcount,
-                    qmap[name].hiwater,
-                    'WARNING: unused' if qmap[name].hiwater == 0 else ''
-                ))
-        print()
+    print('Dataq use summary:')
+    print('  %15s  %5s %5s %s'%('Queue', 'Put',   'Max',  ''))
+    print('  %15s  %5s %5s %s'%('Name' , 'Count', 'Used', 'Comment'))
+    for name in sorted(qmap.keys()):
+        print('  %15s: %5d %5d %s'
+              %(name,
+                qmap[name].putcount,
+                qmap[name].hiwater,
+                'WARNING: unused' if qmap[name].hiwater == 0 else ''
+            ))
+    print()
         
 
     archive = G.node['NSA']['sim']
-    print('%d of %s get slots are allocated.' 
-          % (len(archive.get_queue),archive.capacity))
+    #!print('%d of %s get slots are allocated.' 
+    #!      % (len(archive.get_queue),archive.capacity))
+    #!
+    #!print('%d of %s put slots are allocated.' 
+    #!      % (len(archive.put_queue),archive.capacity))
 
-    print('%d of %s put slots are allocated.' 
-          % (len(archive.put_queue),archive.capacity))
-
-    print('Queued %d items in NSA:'% len(archive.items))
-    pprint(sorted(archive.items))
     #print('NSA contains %d items'% (archive.level))
+    print('NSA (archive) summary:')
+    print('  Queued %d total items:%s'
+          % (len(archive.items),
+             '\n\t'.join(sorted(archive.items))))
+    print('  Contains %d unique items:%s' 
+          % (len(set(archive.items)),
+             '\n\t'.join(sorted(set(archive.items)))))
 
 
 
@@ -403,8 +407,8 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     if draw:
         print('Displaying dataflow graph')
         fig = literate.drawDfGraph(G)
-    print('Content of loaded graph:')
-    pprint(G.nodes(data=True))
+    #! print('Content of loaded graph:')
+    #! pprint(G.nodes(data=True))
 
     cpuLUT = dict() # cpuLUT[hostname] = resource
     for n,d in G.nodes_iter(data=True):
@@ -423,7 +427,8 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
             #!d['sim'] = simpy.Container(env)
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         else:
-            print('WARNING: No simulation for node of type:',ntype)
+            print('WARNING: No simulation for node (%s) of type: %s'
+                  %(n,ntype))
     
     if profile:
         addProfiling(G)
@@ -451,9 +456,11 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         elif etype == 'sq':
             d['pipe'] = vd['sim']
         else:
-            print('WARNING: No simulation for edge of type:',etype)
+            print('WARNING: No simulation for edge (%s -> %s) of type: %s'
+                  %(u,v,etype))
             
-    print('edgeTypeCnt=',edgeTypeCnt)
+    print('edgeTypeCnt=%s' 
+          % ', '.join(['%s=%d'%(k,v) for (k,v) in edgeTypeCnt.items()]))
         
 
     for n,d in G.nodes_iter(data=True):
@@ -480,7 +487,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
                          if ('pipe' in d1) ]
             env.process(d['sim'].generateAction(in_pipes, out_pipes))
             print('Create ACTION generator for %s. in=%s out=%s'
-                  %(n,in_pipes, out_pipes))
+                  %(n,
+                    [r.__class__.__name__ for r in in_pipes], 
+                    [r.__class__.__name__ for r in out_pipes]))
             createdProcesses += 1
         elif d.get('type') == 't':
             pass
@@ -490,11 +499,11 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
             print('WARNING!!! Unexpected node type: "%s"'%(d.get('type')))
 
     print('Created %d processes'%(createdProcesses,))
-    print('Content of sim annotated graph:')
-    print('  NODES:')
-    pprint(G.nodes(data=True))
-    print('  EDGES:')
-    pprint(G.edges(data=True))
+    #!print('Content of sim annotated graph:')
+    #!print('  NODES:')
+    #!pprint(G.nodes(data=True))
+    #!print('  EDGES:')
+    #!pprint(G.edges(data=True))
 
 #!            preds = [p for p in G.predecessors(n)
 #!                     if ((G.node[p]['type'] == 'q') 
@@ -535,37 +544,51 @@ def addProfiling(G):
     simpy.Container.instances = list()
     Dataq.instances = list()
 
+    # Monkey patch PUT to count messages
+    if not hasattr(Dataq,'monkey'):
+        origDataqPut = Dataq.put
+        print('DBG monkey patch Dataq')
+        def putDataqWithCount(self,data):
+            instance = self
+            setattr(instance,'putcount', 1 + getattr(instance,'putcount',0))
+            print('DBG: monkey %s.put(); putcount=%d'
+                  %(instance,getattr(instance,'putcount',-1)))
+            return origDataqPut(self,data)
+        Dataq.put = putDataqWithCount
+        setattr(Dataq,'monkey',True)
+
+
     for n,d in G.nodes_iter(data=True):
         if 'sim' not in d:
             continue
 
         si = d['sim']
-        setattr(si,'putcount', 0)
-        print('DBG si=',si)
-
         if isinstance(si,DciAction):
             pass
         elif isinstance(si,Dataq):
-            # Monkey patch PUT to count messages
-            origPut = si.put
-            def put(data):
-                setattr(si,'putcount', 1 + getattr(si,'putcount',0))
-                return origPut(data)
-            si.put = put
             Dataq.instances.append(si)
-
         elif isinstance(si, simpy.Container):
-            # Monkey patch PUT to count messages
-            origPut = si.put
-            def put(data):
-                setattr(si,'putcount', 1 + getattr(si,'putcount',0))
-                return origPut(data)
-            si.put = put
-            simpy.Container.instances.append(si)
-        elif isinstance(si,DciInstrument):
             pass
-        else:
-            print('WARNING: not profiling %s; %s'%(n,d))
+        elif isinstance(si,DciInstrument):
+            #!print('DBG-4 si=%s type=%s'%(si,type(si)))
+            pass
+
+    print('Dataq.instances = ',Dataq.instances)
+#!
+#!    for dq in Dataq.instances:
+#!        # Monkey patch PUT to count messages
+#!        if not hasattr(dq,'monkey'):
+#!            origDataqPut = dq.put
+#!            print('DBG monkey patch Dataq instance: ',dq)
+#!            def putDataqWithCount(data,instance=dq):
+#!                setattr(instance,'putcount', 1 + getattr(instance,'putcount',0))
+#!                print('DBG: monkey %s.put(); putcount=%d'
+#!                      %(instance,getattr(instance,'putcount',-1)))
+#!                return origDataqPut(data)
+#!            dq.put = functools.partial(putDataqWithCount,instance=dq)
+#!            setattr(dq,'monkey',True)
+
+
 
 
 
