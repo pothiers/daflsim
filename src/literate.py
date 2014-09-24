@@ -64,6 +64,9 @@ def drawDfGraph(G,figTitle='SDM Dataflow'):
     return(fig)
     
 def validateDataflowGraph(G):
+    def assertTrue(tf,msg):
+        if not tf:
+            raise AttributeError(msg)
     def assertEqual(a,b,msg):
         if a != b:
             raise AttributeError(msg)
@@ -79,6 +82,11 @@ def validateDataflowGraph(G):
                         'Action (%s) must have zero or one S,Q,A type input. %s'
                         %(n,qins))
 
+        if d['type'] == 's':
+            assertTrue('source' in d, 
+                       'Source (%s) must have a SOURCE (string) attribute: %s'
+                        %(n,d))
+
 
     for u,v,d in G.edges_iter(data=True):
         ud = G.node[u]	
@@ -92,6 +100,11 @@ def validateDataflowGraph(G):
 
 
 def loadDataflow(dotfile, outgraphml='foo.graphml'):
+    '''\
+"action=" implies "type=a"
+"source=" implies "type=s"
+    '''
+
     #!G = nx.read_dot(dotfile)
     G = nx.DiGraph(nx.read_dot(dotfile))
     allowedNodeTypes = set('qastd')
@@ -119,6 +132,8 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
         # Determine TYPE from type specific attributes
         if ('action' in ud):
             ud['type'] = 'a'
+        if ('source' in ud):
+            ud['type'] = 's'
 
         if 'type' not in ud:
             raise RuntimeError('Node %s (%s) does not have a type! (%s)'
@@ -152,7 +167,7 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
         #!d['host'] = dd['host']
         #!d['cron'] = dd['cron']
         d.update(((k,v) for (k,v) in dd.items()
-                  if k in set(['action','host','cron'])))
+                  if k in set(['action','host','cron','source'])))
     
     validateDataflowGraph(G)
     return G

@@ -37,6 +37,9 @@ import defaultCfg
 from pprint import pprint
 import networkx as nx
 
+cfg = defaultCfg.cfg
+monitor = None # !!!
+
 
 def stepTraceFunc(event):
     import inspect
@@ -49,7 +52,6 @@ def stepTraceFunc(event):
               % (event.env.now, generatorName, geninfo, event.value, xtra))
 
 
-monitor = None # !!!
 
 # Minutes since start of hour
 def minutesThisHour(nowSeconds):
@@ -97,11 +99,13 @@ def next_cron(nowSeconds, cronstr):
 
 def print_summary(env, G):
     print('#'*55)
-    print('Simulation done at %d.'%(env.now))
+    print('Simulation done at time: %d.'%(env.now))
 
     qmap = dict() # qmap[name] = Dataq
-    for dq in Dataq.instances:
-        qmap[dq.name] = dq
+    #!for dq in Dataq.instances:
+    for n,d in G.nodes_iter(data=True):
+        if ('sim' in d) and isinstance(d['sim'],Dataq):
+            qmap[d['sim'].name] = d['sim']
 
     print('Dataq use summary:')
     print('  %15s  %5s %5s %s'%('Queue', 'Put',   'Max',  ''))
@@ -125,12 +129,13 @@ def print_summary(env, G):
 
     #print('NSA contains %d items'% (archive.level))
     print('NSA (archive) summary:')
-    print('  Queued %d total items:%s'
-          % (len(archive.items),
-             '\n\t'.join(sorted(archive.items))))
-    print('  Contains %d unique items:%s' 
+    print('  Queued %d total items' % (len(archive.items),))
+    #!print('  Queued %d total items:\n\t%s'
+    #!      % (len(archive.items),
+    #!         '\n\t'.join(sorted(archive.items))))
+    print('  Contains %d unique items:\n\t%s' 
           % (len(set(archive.items)),
-             '\n\t'.join(sorted(set(archive.items)))))
+             ', '.join(sorted(set(archive.items)))))
 
 
 
@@ -208,7 +213,8 @@ class Dataq(simpy.Store):
 class DciInstrument():
     '''Generates data records, such as pictures. '''
 
-    def __init__(self, env, name, host, cpu, count=5 ):
+    def __init__(self, env, name, host, cpu, count=5):
+        global cfg
         self.env = env
         self.name = name
         self.host = host
@@ -217,7 +223,7 @@ class DciInstrument():
         self.simType = 's'
 
         #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
-        self. start_delay = 5 #!!! speed things up
+        self. start_delay = cfg['image_delay']
 
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
 
@@ -228,10 +234,10 @@ class DciInstrument():
         logging.debug('Starting "%s" INSTRUMENT to generate %d files.'
                       %(name,self.count))
         for cid in range(self.count):
-            yield self.env.timeout(1) #!!! config
+            yield self.env.timeout(self.start_delay)
             msg = '%s.%s.%03d.png' % (self.host,self.name, cid)
             out_pipe.put(msg)
-            print('# %04d [%s]: Generated data: %s'
+            print('# t=%04d [%s]: Generated data: %s'
                   %(self.env.now, self.name, msg))
 
 class DciAction():
@@ -259,8 +265,6 @@ class DciAction():
                 res = yield in_pipe.get()
                 m = res[0] if isinstance(res,tuple) else res
                 msgList.append(m)
-            print('DBG: action=%s in-msgList=%s inPipes=%s outPipes=%s'
-                  %(self.nid, msgList, in_pipes, out_pipes))
             msg = ','.join(msgList)
                 
             logging.debug('[dataAction] delay %s seconds; %s@%s'
@@ -411,6 +415,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     #! pprint(G.nodes(data=True))
 
     cpuLUT = dict() # cpuLUT[hostname] = resource
+    noNodeSimCnt = defaultdict(int) # dict[ntype] = count
     for n,d in G.nodes_iter(data=True):
         #simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
@@ -418,7 +423,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 
         # Map node types to Simpy instances (not exhaustive)
         if ntype == 's':
-            d['sim'] = DciInstrument(env,'DECam',d['host'], cpu) #!!!
+            d['sim'] = DciInstrument(env,d['source'],d['host'], cpu) #!!!
         elif ntype == 'q':
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         elif ntype == 'a':
@@ -427,8 +432,11 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
             #!d['sim'] = simpy.Container(env)
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         else:
-            print('WARNING: No simulation for node (%s) of type: %s'
-                  %(n,ntype))
+            noNodeSimCnt[ntype] += 1
+
+    if len(noNodeSimCnt) > 0:
+        print('WARNING: No simulation for some nodes.  (type=count): %s'
+              %(', '.join(['%s=%d'%(k,v) for k,v in noNodeSimCnt.items()])))
     
     if profile:
         addProfiling(G)
@@ -443,6 +451,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         edgeTypeCnt[etype] += 1 # diag!!!
         
         # Map edge types to Simpy "connection instances" (not exhaustive)
+        noEdgeSimCnt = defaultdict(int) # dict[ntype] = count
         if etype == 'sa':
             d['pipe'] = simpy.Store(env,capacity=1)
         elif etype == 'aa':
@@ -456,10 +465,14 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         elif etype == 'sq':
             d['pipe'] = vd['sim']
         else:
-            print('WARNING: No simulation for edge (%s -> %s) of type: %s'
-                  %(u,v,etype))
+            noEdgeSimCnt[etype] += 1
+
+    if len(noEdgeSimCnt) > 0:
+        print('WARNING: No simulation for some edges.  (type=count): %s'
+              %(', '.join(['%s=%d'%(k,v) for k,v in noEdgeSimCnt.items()])))
+        
             
-    print('edgeTypeCnt=%s' 
+    print('edgeTypeCnt: %s' 
           % ', '.join(['%s=%d'%(k,v) for (k,v) in edgeTypeCnt.items()]))
         
 
@@ -474,7 +487,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 
                 env.process(d['sim'].generateData(di['pipe']))
                 createdProcesses += 1
-                print('Create DATA generator for %s. Pipe=%s'%(n,di['pipe']))
+                print('Create DATA generator for %s. Out=%s'
+                      %(n,di['pipe'].__class__.__name__))
+
         elif d.get('type') == 'q':
             env.process( monitorQ(env, d['sim'] ))
             createdProcesses += 1
@@ -521,24 +536,6 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     # END setupDataflowNetwork()
 
 
-def simulate0():
-    env = simpy.Environment()
-    setup(env)
-
-    print('event schedule queue = ',)
-    pprint(env._queue)
-
-    #!env.run(until=400)
-    env.run(until=1e5)
-    print_summary(env)
-
-def simulate(dotfile):
-    env = simpy.Environment()
-    setupDataflowNetwork(env, dotfile)
-    #!env.run(until=400)
-    env.run(until=1e5)
-    print_summary(env)
-
     
 def addProfiling(G):
     simpy.Container.instances = list()
@@ -547,12 +544,9 @@ def addProfiling(G):
     # Monkey patch PUT to count messages
     if not hasattr(Dataq,'monkey'):
         origDataqPut = Dataq.put
-        print('DBG monkey patch Dataq')
         def putDataqWithCount(self,data):
             instance = self
             setattr(instance,'putcount', 1 + getattr(instance,'putcount',0))
-            print('DBG: monkey %s.put(); putcount=%d'
-                  %(instance,getattr(instance,'putcount',-1)))
             return origDataqPut(self,data)
         Dataq.put = putDataqWithCount
         setattr(Dataq,'monkey',True)
@@ -570,24 +564,8 @@ def addProfiling(G):
         elif isinstance(si, simpy.Container):
             pass
         elif isinstance(si,DciInstrument):
-            #!print('DBG-4 si=%s type=%s'%(si,type(si)))
             pass
-
-    print('Dataq.instances = ',Dataq.instances)
-#!
-#!    for dq in Dataq.instances:
-#!        # Monkey patch PUT to count messages
-#!        if not hasattr(dq,'monkey'):
-#!            origDataqPut = dq.put
-#!            print('DBG monkey patch Dataq instance: ',dq)
-#!            def putDataqWithCount(data,instance=dq):
-#!                setattr(instance,'putcount', 1 + getattr(instance,'putcount',0))
-#!                print('DBG: monkey %s.put(); putcount=%d'
-#!                      %(instance,getattr(instance,'putcount',-1)))
-#!                return origDataqPut(data)
-#!            dq.put = functools.partial(putDataqWithCount,instance=dq)
-#!            setattr(dq,'monkey',True)
-
+    #!print('Dataq.instances = ',Dataq.instances)
 
 
 
@@ -596,6 +574,7 @@ def addProfiling(G):
 
 def main():
     global monitor
+    global cfg
     #!print('EXECUTING: %s\n\n' % (string.join(sys.argv)))
     parser = argparse.ArgumentParser(
         description='My shiny new python program',
@@ -633,7 +612,8 @@ def main():
                         )
     logging.debug('Debug output is enabled in %s !!!', sys.argv[0])
 
-    cfg = defaultCfg.cfg if args.cfg is None else json.load(args.cfg)
+    if args.cfg:
+        cfg = json.load(args.cfg)
 
     monitor = Monitor(args.monitor)
 
@@ -641,7 +621,7 @@ def main():
     env = simpy.Environment()
     simpy.util.trace(env,stepTrace=stepTraceFunc)
     G = setupDataflowNetwork(env, args.infile, profile=args.profile)
-    env.run(until=1e3)
+    env.run(until=5*1e2)
     print_summary(env,G)
 
     monitor.close()
