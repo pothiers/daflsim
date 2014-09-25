@@ -32,7 +32,7 @@ fg1=feed_graphite.out
 testCommand dim1_1 "dfsim.py --summarize NSA --profile $dotfile --graphite $fg1 2>&1" "^\#" n
 #!testOutput out $fg1 '^\#' n
 
-#!testCommand dim1_2 "dfsim.py --summarize end --profile ../tests/graphviz-sample1.dot" "^\#" n
+testCommand dim1_2 "dfsim.py --summarize end --profile ../tests/graphviz-sample1.dot" "^\#" n
 
 ###########################################
 #! echo "WARNING: ignoring remainder of tests"

@@ -7,15 +7,15 @@ Dataq use summary:
         dsan3.NSA:    97    97 
       dsan3.q1535:    10     1 
       dsan3.q1635:    10     1 
-      dsan3.q1735:    10     5 
+      dsan3.q1735:    10     6 
       dsan3.q1934:     5     1 
       dsan3.q8335:   121    23 
       dsan3.q8336:    97     1 
       dsan3.q9435:    10     1 
-   dsas3.NOWHERE1:     0     0 WARNING: unused
+   dsas3.NOWHERE1:    10    10 
       dsas3.q2535:    10     1 
       dsas3.q2635:    10     1 
-      dsas3.q2735:    10     5 
+      dsas3.q2735:    10     6 
       dsas3.q9635:    10     1 
       dtscp.q3135:     5     1 
       dtscp.q3335:     5     1 
@@ -30,6 +30,11 @@ Dataq use summary:
      dtstuc.q6235:     5     1 
      dtstuc.q6435:     5     1 
 
+Store use summary (4):
+	 Edge ('instrument1', 'stb1'): putcount=5
+	 Edge ('instrument4', 'stb4'): putcount=5
+	 Edge ('instrument5', 'stb5'): putcount=5
+	 Edge ('pipeline', 'stb2'): putcount=5
 
 Summary of node "NSA":
   Queued 97 total items

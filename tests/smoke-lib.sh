@@ -172,13 +172,33 @@ function testCommand () {
 
   ## Make sure we didn't get errors (output to stderr).
   tn="2/3"
-  if [ -s $err ]; then
-    cat $err
-    echo "*** $proc FAILED [$testName] ($tn; Output was sent to STDERR: $err) ***"
-    return_code=1
+  ERRGOLD=$err.GOLD
+  pwd=`pwd`
+  if [ -e $ERRGOLD ]; then
+      sort $ERRGOLD  > $ERRGOLD.sorted
+      sort $err  > $err.sorted
+      if ! diff $ERRGOLD.sorted $err.sorted > $diff;  then
+          cat $diff
+          echo ""
+          echo "To accept current results: cp $pwd/$err $pwd/$ERRGOLD"
+          echo "*** $proc FAILED [$testName] ($tn; got UNEXPECTED STDERR) ***"
+          return_code=1
+      else
+          echo "*** $proc PASSED [$testName] ($tn; got expected STDERR) ***"
+          rm $ERRGOLD.sorted $err.sorted
+      fi
   else
-    echo "*** $proc PASSED [$testName] ($tn; no STDERR output) ***"
-    rm $err
+      if [ -s $err ]; then
+        cat $err
+        echo "*** $proc FAILED [$testName] ($tn; Output was sent to STDERR: $err) ***"
+        echo ""
+        echo "To accept current STDERR results: cp $pwd/$err $pwd/$ERRGOLD"
+        echo "*** $proc FAILED [$testName] ($tn; got UNEXPECTED STDERR) ***"
+        return_code=1
+      else
+        echo "*** $proc PASSED [$testName] ($tn; no STDERR output) ***"
+        rm $err
+      fi
   fi
 
   # filter out diagnostic output (if any)

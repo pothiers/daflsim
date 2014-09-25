@@ -80,6 +80,7 @@ def print_summary(env, G, summarizeNodes=[]):
     print()
 
     siList = simpy.Store.instances
+    siList.sort(key=lambda x: x.edge)
     if len(siList) > 0:
         print('Store use summary (%d):'%len(siList))
         for si in siList:
@@ -137,9 +138,9 @@ class Dataq(simpy.Store):
         logging.debug('Creating dataq: %s'%name)
         self.env = env
         self.name = name
-        self.hiwater = 0
+        #!self.hiwater = 0
         self.simType = 'q'
-        self.putcount = 0
+        #!self.putcount = 0
         super().__init__(env,capacity=capacity)
         Dataq.instances.append(self)
 
@@ -218,17 +219,17 @@ class DciAction():
 
 
 
-def monitorQ(env, dataq, delay=1):
-    if not monitor:
-        return
-    log = monitor.file
-    while True:
-        yield env.timeout(delay)
-        dataq.hiwater = max(dataq.hiwater,len(dataq.items))
-        feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
-        #!logging.debug('# %04d [monitorQ]: %s %d ITEMS'
-        #!              % (env.now, dataq.name, len(dataq.items)))
-
+#!def monitorQ(env, dataq, delay=1):
+#!    if not monitor:
+#!        return
+#!    log = monitor.file
+#!    while True:
+#!        yield env.timeout(delay)
+#!        dataq.hiwater = max(dataq.hiwater,len(dataq.items))
+#!        feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
+#!        #!logging.debug('# %04d [monitorQ]: %s %d ITEMS'
+#!        #!              % (env.now, dataq.name, len(dataq.items)))
+#!
 
 def printGraphSummary(G):
     logging.info('Graph summary:')
@@ -365,8 +366,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
                   %(n,out_pipes))
 
         elif d.get('type') == 'q':
-            env.process( monitorQ(env, d['sim'] ))
-            createdProcesses += 1
+            pass
+            #!env.process( monitorQ(env, d['sim'] ))
+            #!createdProcesses += 1
         elif d.get('type') == 'a':
             in_pipes = [d0['pipe']
                         for u0,v0,d0 in G.in_edges(n,data=True)
@@ -412,7 +414,10 @@ def addProfiling(G):
         def putDataqWithCount(self,data):
             instance = self
             setattr(instance,'putcount', 1 + getattr(instance,'putcount',0))
-            return origDataqPut(self,data)
+            res = origDataqPut(self,data)
+            instance.hiwater = max(getattr(instance,'hiwater',0),
+                                   len(instance.items))
+            return res
         Dataq.put = putDataqWithCount
         setattr(Dataq,'monkey',True)
 
