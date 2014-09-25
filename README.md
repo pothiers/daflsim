@@ -1,6 +1,6 @@
 DES (Discrete Event Simulation) of data-flow from data-flow diagram (graphviz format). 
 
-see doc/dataflow-simulation.org
+see [detailed doc](/doc/dataflow-simulation.org)
 
 Try:
 
