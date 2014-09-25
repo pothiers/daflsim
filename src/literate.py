@@ -78,9 +78,9 @@ def validateDataflowGraph(G):
     for n,d in G.nodes_iter(data=True):    
         if d['type'] == 'a':
             qins = [u for u,v in G.in_edges(n) if (G.node[u]['type'] in 'sqa')]
-            assertLess(len(qins), 2,
-                        'Action (%s) must have zero or one S,Q,A type input. %s'
-                        %(n,qins))
+            #!assertLess(len(qins), 2,
+            #!          'Action (%s) must have zero or one S,Q,A type input. %s'
+            #!           %(n,qins))
 
         if d['type'] == 's':
             assertTrue('source' in d, 
@@ -119,8 +119,8 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
     defaultNodeDict = dict(delay=0, duration=0, host='NA-host')
     defaultEdgeDict = dict(delay=0, host='NA-host', port='0000')
     G.graph = {} # containts DICT VALUES that are dict, bad for graphml
-    if outgraphml != None:
-        nx.write_graphml(G,outgraphml)
+    #!if outgraphml != None:
+    #!    nx.write_graphml(G,outgraphml)
 
     for n,d in G.nodes_iter(data=True):
         dd = defaultNodeDict.copy()

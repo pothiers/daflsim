@@ -3,8 +3,7 @@
 Simulate data-flow from instruments to NSA (archive) .
 '''
 
-'''
-Resources we might simulate usage for:
+'''Resources we might simulate usage for:
 - CPU cycles
 - RAM 
 - disk space
@@ -16,6 +15,13 @@ Simulate modules on significant machines from all 5 sites:
   - CT
   - CP
   - LS
+
+> !!! For decam images there's a .hdr file generated on dtsct1 that flows
+> independently (dci) from the complete file (dts) but they both have to
+> have arrived on dsas3 or dsan3 before they can be ingested.
+** Ok. I need to modify for that.  Simpy supports "all-of" and
+   "any-of" so I don't anticipate trouble - just some more work.
+
 '''
 
 import sys
@@ -51,7 +57,7 @@ def stepTraceFunc(event):
               % (event.env.now, generatorName, geninfo, event.value, xtra))
 
 
-def print_summary(env, G):
+def print_summary(env, G, summarizeNodes=[]):
     print('#'*55)
     print('Simulation done at time: %d.'%(env.now))
 
@@ -72,24 +78,24 @@ def print_summary(env, G):
                 'WARNING: unused' if qmap[name].hiwater == 0 else ''
             ))
     print()
-        
+    
+    for nid in summarizeNodes:
+        archive = G.node[nid]['sim']
+        #!print('%d of %s get slots are allocated.' 
+        #!      % (len(archive.get_queue),archive.capacity))
+        #!
+        #!print('%d of %s put slots are allocated.' 
+        #!      % (len(archive.put_queue),archive.capacity))
 
-    archive = G.node['NSA']['sim']
-    #!print('%d of %s get slots are allocated.' 
-    #!      % (len(archive.get_queue),archive.capacity))
-    #!
-    #!print('%d of %s put slots are allocated.' 
-    #!      % (len(archive.put_queue),archive.capacity))
-
-    #print('NSA contains %d items'% (archive.level))
-    print('NSA (archive) summary:')
-    print('  Queued %d total items' % (len(archive.items),))
-    #!print('  Queued %d total items:\n\t%s'
-    #!      % (len(archive.items),
-    #!         '\n\t'.join(sorted(archive.items))))
-    print('  Contains %d unique items:\n\t%s' 
-          % (len(set(archive.items)),
-             ', '.join(sorted(set(archive.items)))))
+        #print('NSA contains %d items'% (archive.level))
+        print('\nSummary of node "%s":'%nid)
+        print('  Queued %d total items' % (len(archive.items),))
+        #!print('  Queued %d total items:\n\t%s'
+        #!      % (len(archive.items),
+        #!         '\n\t'.join(sorted(archive.items))))
+        print('  Contains %d unique items:\n\t%s' 
+              % (len(set(archive.items)),
+                 ', '.join(sorted(set(archive.items)))))
 
 
 
@@ -101,7 +107,9 @@ def print_summary(env, G):
 #   timestamp:: Unix epoch (seconds since 1970-01-01 00:00:00 UTC)
 #   value:: float
 def feed_graphite(path, value, timestamp):
-    log = monitor.file if monitor else sys.stdout
+    if not monitor:
+        return
+    log = monitor.file 
     print('%s %s %d' % (path, value, timestamp), file=log)
 
 class Monitor():
@@ -109,7 +117,8 @@ class Monitor():
         self.file = outfile
         
     def close(self):
-        self.file.close()
+        if self.file:
+            self.file.close()
 
 def q_in(when, src, q, data):
     q.put(data)
@@ -199,7 +208,7 @@ class DciAction():
         self.env = env
         self.action = action
         self.cpu = cpu
-        self.name = self.action.__name__
+        #!self.name = self.action.__name__
         self.simType = 'a'
         self.nid = nid
         self.start_delay = cfg['action_delay'] #  use CRON data!!!
@@ -207,7 +216,9 @@ class DciAction():
 
     def generateAction(self, in_pipes, out_pipes):
         if len(in_pipes) > 1:
-            logging.warning('More than 1 input to node: %s'%n)
+            logging.warning(
+                'More than 1 input to node "%s". Getting msg from all.'
+                %(self.nid))
 
         while True:
             # Get event for message pipe
@@ -230,7 +241,9 @@ class DciAction():
 
 
 def monitorQ(env, dataq, delay=1):
-    log = monitor.file if monitor else sys.stdout
+    if not monitor:
+        return
+    log = monitor.file
     while True:
         yield env.timeout(delay)
         dataq.hiwater = max(dataq.hiwater,len(dataq.items))
@@ -291,7 +304,11 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         elif ntype == 'q':
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         elif ntype == 'a':
-            d['sim'] = DciAction(env, eval('actions.'+d['action']), cpu, n)
+            if hasattr(actions,d['action']):
+                func = eval('actions.'+d['action']) 
+            else:
+                func = functools.partial(actions.nop,name=d['action'])
+            d['sim'] = DciAction(env, func, cpu, n)
         elif ntype == 't':
             #!d['sim'] = simpy.Container(env)
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
@@ -342,7 +359,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     logging.info('edgeTypeCnt: %s' 
           % ', '.join(['%s=%d'%(k,v) for (k,v) in edgeTypeCnt.items()]))
         
-
+    # Create simulation processes
     for n,d in G.nodes_iter(data=True):
         simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
@@ -449,13 +466,16 @@ def main():
         )
     parser.add_argument('--version', action='version',  version='1.1.0')
     parser.add_argument('--profile', action='store_true')
+    parser.add_argument('--summarize', 
+                        default=[],                        
+                        action='append')
     parser.add_argument('--cfg', 
                         help='Configuration file',
                         type=argparse.FileType('r') )
     parser.add_argument('infile', type=argparse.FileType('r'),
                         help='Graphviz (dot) file. Spec for dataflow network.')
-    parser.add_argument('monitor', type=argparse.FileType('w'),
-                        help='Output output'
+    parser.add_argument('--graphite', type=argparse.FileType('w'),
+                        help='Output for GRAPHITE plotter'
                         )
 
     parser.add_argument('--loglevel',      help='Kind of diagnostic output',
@@ -481,17 +501,20 @@ def main():
 
     if args.cfg:
         cfg = json.load(args.cfg)
-
-    monitor = Monitor(args.monitor)
+    
+    if args.graphite:
+        monitor = Monitor(args.graphite)
 
     #!simulate(infile)
     env = simpy.Environment()
     #!simpy.util.trace(env,stepTrace=stepTraceFunc)
     G = setupDataflowNetwork(env, args.infile, profile=args.profile)
     env.run(until=5*1e2)
-    print_summary(env,G)
+    print('DBG-00',args.summarize)
+    print_summary(env,G, summarizeNodes=args.summarize)
 
-    monitor.close()
+    if args.graphite:
+        monitor.close()
 
 if __name__ == '__main__':
     main()

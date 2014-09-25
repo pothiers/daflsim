@@ -29,9 +29,8 @@ echo ""
 
 dotfile=sdm-dci-dataflow.dot
 fg1=feed_graphite.out
-testCommand dim1_1 "dfsim.py --profile $dotfile $fg1 2>&1" "^\#" n
+testCommand dim1_1 "dfsim.py --summarize NSA --profile $dotfile --graphite $fg1 2>&1" "^\#" n
 #!testOutput out $fg1 '^\#' n
-
 
 ###########################################
 #! echo "WARNING: ignoring remainder of tests"

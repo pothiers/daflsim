@@ -1,4 +1,6 @@
 digraph G {
+    label="For simulation";
+    
 
 	subgraph cluster_0 {
 		style=filled;
@@ -22,6 +24,16 @@ digraph G {
 	a3 -> end;
 	b3 -> end;
 
-	start [shape=Mdiamond];
-	end [shape=Msquare];
+	start [shape=Mdiamond, tooltip="source='sample',host='H1'"];
+	end [shape=Msquare, tooltip="type='t',host='H1'"];
+    a0 [tooltip="action='a0', host='H1'"];
+    a1 [tooltip="action='a1', host='H1'"];
+    a2 [tooltip="action='a2', host='H1'"];
+    a3 [tooltip="action='a3', host='H1'"];
+
+    b0 [tooltip="action='b0', host='H1'"];
+    b1 [tooltip="action='b1', host='H1'"];
+    b2 [tooltip="action='b2', host='H1'"];
+    b3 [tooltip="action='b3', host='H1'"];
+    
 }
