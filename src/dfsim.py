@@ -40,7 +40,6 @@ import networkx as nx
 cfg = defaultCfg.cfg
 monitor = None # !!!
 
-
 def stepTraceFunc(event):
     import inspect
     if isinstance(event,simpy.Process):
@@ -51,51 +50,6 @@ def stepTraceFunc(event):
         print('TRACE %s: event.Process: gen=%s(locals=%s) (value=%s) %s'  
               % (event.env.now, generatorName, geninfo, event.value, xtra))
 
-
-
-# Minutes since start of hour
-def minutesThisHour(nowSeconds):
-    return(int((nowSeconds/60) % 60))
-
-# Hours since start of day
-def hoursThisDay(nowSeconds):
-    return(int((nowSeconds/60) % (60*24)/60))
-
-    
-# Return number of seconds until a cron job using the spec containing 
-# "<minute> <hour> * * *" would fire.
-# APPROXIMATE: Only implements pieces of cron date/time matching we need.
-def next_cron(nowSeconds, cronstr):
-    '''
-    nowSeconds:: seconds since start of simulation
-    cronstr:: "minute hour"; either can be N or "*" or "*/<step>"
-    '''
-    def parseStep(str):
-        n,*stepList = str.split('/')
-        return(0 if (n == '*') else int(n),
-               1 if (0 == len(stepList)) else int(stepList[0]))
-    def remTime(nowTime, times, timeStep):
-        if times == 0:
-            # for "*/5 *"
-            return(timeStep - (nowTime + times) % timeStep)
-        else:
-            # for "35 *"
-            return(times - (nowTime % times))
-
-
-        
-    minute,hour = cronstr.split()
-
-    nowMinutes = minutesThisHour(nowSeconds)
-    minutes,minuteStep = parseStep(minute)
-    delayMinutes = remTime(nowMinutes, minutes, minuteStep)
-
-    nowHours = hoursThisDay(nowSeconds)
-    hours,hourStep = parseStep(hour)
-    delayHours = remTime(nowHours, hours, hourStep)
-
-    return delayMinutes*60+ delayHours*60*60
-    
 
 def print_summary(env, G):
     print('#'*55)
@@ -180,7 +134,7 @@ in the telescope. '''
         yield env.timeout(random.randint(1,7))
         msg = '%s.id%d.png' % (name, cid)
         q_in(env.now, name, dataq, msg)
-        print('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
+        logging.info('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
 
 # data PRODUCER  (generator)
 def instrument(env, name, count=5):
@@ -222,7 +176,6 @@ class DciInstrument():
         self.count = count
         self.simType = 's'
 
-        #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
         self. start_delay = cfg['image_delay']
 
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
@@ -237,21 +190,19 @@ class DciInstrument():
             yield self.env.timeout(self.start_delay)
             msg = '%s.%s.%03d.png' % (self.host,self.name, cid)
             out_pipe.put(msg)
-            print('# t=%04d [%s]: Generated data: %s'
+            logging.info('# t=%04d [%s]: Generated data: %s'
                   %(self.env.now, self.name, msg))
 
 class DciAction():
     def __init__(self, env, action, cpu, nid):
+        global cfg
         self.env = env
         self.action = action
         self.cpu = cpu
         self.name = self.action.__name__
         self.simType = 'a'
         self.nid = nid
-
-        #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
-        self. start_delay = 5 #!!! speed things up
-        logging.debug('[DciAction] Initializing (%s)'%(self.name,))
+        self.start_delay = cfg['action_delay'] #  use CRON data!!!
 
 
     def generateAction(self, in_pipes, out_pipes):
@@ -277,37 +228,6 @@ class DciAction():
                 out_pipe.put(result)
 
 
-# CONSUMER, PRODUCER
-def dataAction(env, action, inp, outqList):
-    name = action.__name__
-    if isinstance(inp,Dataq):
-        inport = inp.name[-4:]  #!!! Bad to count on naming scheme!
-    else:
-        inport = inp
-    logging.debug('[dataAction] outqList=%s'%(outqList))
-    logging.debug('[dataAction] Starting (%s) connecting %s to %s'
-                  %(name, inport,','.join([q.name for q in outqList])))
-    while True:
-        #! start_delay = next_cron(env.now,cfg['cron']['%s_%s'%(name,inport)])
-        start_delay = 1 #!!! speed things up
-        logging.debug('[dataAction] delay %s seconds; %s; %s'%(start_delay, env.now, name))
-        yield env.timeout(start_delay)
-        logging.debug('[dataAction] DONE delay')
-        msg = 'NA'
-        if isinstance(inp,Dataq):
-            logging.debug('[dataAction] inq.get()')
-            msg = yield inp.get()
-            logging.debug('[dataAction] DONE inp.get()')
-            print('# %s -> %s'%(inp.name, name))
-
-        print('# %04d [%s]: Do action using record: %s' %(env.now, name, msg))
-        #!yield env.timeout(random.randint(5,20))
-        logging.debug('START %s'%(name))
-        action(msg)
-        logging.debug('END %s'%(name))
-        for outq in outqList:
-            q_in(env.now, name, outq, msg)
-            logging.debug('%s submitted message to %s'%(name,outq.name))
 
 def monitorQ(env, dataq, delay=1):
     log = monitor.file if monitor else sys.stdout
@@ -317,64 +237,6 @@ def monitorQ(env, dataq, delay=1):
         feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
         #!logging.debug('# %04d [monitorQ]: %s %d ITEMS'
         #!              % (env.now, dataq.name, len(dataq.items)))
-        
-def setup(env):
-    random.seed(42) # make it reproducible?
-
-    q1235 = Dataq(env,'dtskp.q1235')
-    q1335 = Dataq(env,'dtskp.q1335')
-    q1435 = Dataq(env,'dtskp.q1435')
-
-    q6135 = Dataq(env,'dtstuc.q6135')
-    q6235 = Dataq(env,'dtstuc.q6235')
-    q6435 = Dataq(env,'dtstuc.q6435')
-
-    q1535 = Dataq(env,'dsan3.q1535')
-    q1735 = Dataq(env,'dsan3.q1735')
-    q8335 = Dataq(env,'dsan3.q8335')
-    q8336 = Dataq(env,'dsan3.q8336')
-    q9435 = Dataq(env,'dsan3.q9435')
-    nsa   = Dataq(env,'dsan3.NSA')
-
-    q1635 = Dataq(env,'dsas3.q1635')
-    q2435 = Dataq(env,'dsas3.q2435')
-    q2535 = Dataq(env,'dsas3.q2535')
-    q2635 = Dataq(env,'dsas3.q2635')
-    q2735 = Dataq(env,'dsas3.q2735')
-    q3435 = Dataq(env,'dsas3.q3435')
-    q9635 = Dataq(env,'dsas3.q9635')
-
-    unk3 = Dataq(env,'dsas3.UNKNOWN')
-
-    for q in [q1235, q1335, q1435, q6135, q6235, q6435, 
-              q1535, q1735, q8335, q8336, q8336, nsa,
-              q2535, q2635, q2735, q3435, q9635,]:
-        env.process( monitorQ(env, q) )
-
-    env.process(camera(env, 'DECam', q1235))
-    env.process(camera(env, 'KPCam', q1235))
-    env.process(camera(env, 'pipeline?', q6135))
-
-    
-
-    # Simulate pop from In-Queue, do action, push to Out-Queue
-    #                            ACTION               IN-Q   OUT-Q 
-    env.process( dataAction(env, actions.client,     q1235, [q1335]) )
-    env.process( dataAction(env, actions.bundle,     q1335, [q1435]) )
-    env.process( dataAction(env, actions.unbundle,   q1435, [q1735]) )
-    env.process( dataAction(env, actions.client,     q1735, [q8335,q1535]) )
-    env.process( dataAction(env, actions.submit_to_archive2,
-                                                      q8335, [q8336, nsa]) )
-    #! env.process( dataAction(env, actions.resubmit, q8336, [q8335]) )
-    env.process( dataAction(env, actions.bundle,     q1535, [q1635]) )
-    env.process( dataAction(env, actions.unbundle,   q1635, [q9635]) )
-    env.process( dataAction(env, actions.client,     q9635, [unk3]) )
-                                                             
-    env.process( dataAction(env, actions.client,     q6135, [q6235]) )    
-    env.process( dataAction(env, actions.bundle,     q6235, [q6435]) )    
-    env.process( dataAction(env, actions.unbundle,   q6435, [q1735]) )
-
-    return nsa
 
 # return target node
 def downstreamMatch(G, startNode, targetNodeType, maxHop=4):
@@ -407,7 +269,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
-    print(nx.info(G))
+    logging.info(nx.info(G))
     if draw:
         print('Displaying dataflow graph')
         fig = literate.drawDfGraph(G)
@@ -416,10 +278,12 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 
     cpuLUT = dict() # cpuLUT[hostname] = resource
     noNodeSimCnt = defaultdict(int) # dict[ntype] = count
+    nodeTypeCnt = defaultdict(int) # diag!!!
     for n,d in G.nodes_iter(data=True):
         #simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
         ntype = d.get('type')
+        nodeTypeCnt[ntype] += 1 # diag!!!
 
         # Map node types to Simpy instances (not exhaustive)
         if ntype == 's':
@@ -433,6 +297,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         else:
             noNodeSimCnt[ntype] += 1
+
+    logging.info('nodeTypeCnt: %s' 
+          % ', '.join(['%s=%d'%(k,v) for (k,v) in nodeTypeCnt.items()]))
 
     if len(noNodeSimCnt) > 0:
         print('WARNING: No simulation for some nodes.  (type=count): %s'
@@ -472,7 +339,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
               %(', '.join(['%s=%d'%(k,v) for k,v in noEdgeSimCnt.items()])))
         
             
-    print('edgeTypeCnt: %s' 
+    logging.info('edgeTypeCnt: %s' 
           % ', '.join(['%s=%d'%(k,v) for (k,v) in edgeTypeCnt.items()]))
         
 
@@ -487,7 +354,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 
                 env.process(d['sim'].generateData(di['pipe']))
                 createdProcesses += 1
-                print('Create DATA generator for %s. Out=%s'
+                logging.info('Create DATA generator for %s. Out=%s'
                       %(n,di['pipe'].__class__.__name__))
 
         elif d.get('type') == 'q':
@@ -501,7 +368,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
                          for u,v,d1 in G.out_edges(n,data=True)
                          if ('pipe' in d1) ]
             env.process(d['sim'].generateAction(in_pipes, out_pipes))
-            print('Create ACTION generator for %s. in=%s out=%s'
+            logging.info('Create ACTION generator for %s. in=%s out=%s'
                   %(n,
                     [r.__class__.__name__ for r in in_pipes], 
                     [r.__class__.__name__ for r in out_pipes]))
@@ -513,7 +380,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         else:
             print('WARNING!!! Unexpected node type: "%s"'%(d.get('type')))
 
-    print('Created %d processes'%(createdProcesses,))
+    logging.info('Created %d processes'%(createdProcesses,))
     #!print('Content of sim annotated graph:')
     #!print('  NODES:')
     #!pprint(G.nodes(data=True))
@@ -619,7 +486,7 @@ def main():
 
     #!simulate(infile)
     env = simpy.Environment()
-    simpy.util.trace(env,stepTrace=stepTraceFunc)
+    #!simpy.util.trace(env,stepTrace=stepTraceFunc)
     G = setupDataflowNetwork(env, args.infile, profile=args.profile)
     env.run(until=5*1e2)
     print_summary(env,G)

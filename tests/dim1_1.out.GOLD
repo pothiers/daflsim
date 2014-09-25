@@ -1,293 +1,36 @@
-# DECam -> q1235
-# 0004 [DECam]: Generated data: DECam.id0.png
-# KPCam -> q1235
-# 0004 [KPCam]: Generated data: KPCam.id0.png
-# q1235 -> iclient
-# 0004 [iclient]: Do action against: DECam.id0.png
-# DECam -> q1235
-# 0005 [DECam]: Generated data: DECam.id1.png
-# KPCam -> q1235
-# 0005 [KPCam]: Generated data: KPCam.id1.png
-# KPCam -> q1235
-# 0006 [KPCam]: Generated data: KPCam.id2.png
-# 0010 [monitorQ]: q1235 4 ITEMS: ['KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png']
-# 0010 [monitorQ]: NSA 0 ITEMS: []
-# 0010 [monitorQ]: archive 0 ITEMS: []
-# DECam -> q1235
-# 0010 [DECam]: Generated data: DECam.id2.png
-# KPCam -> q1235
-# 0011 [KPCam]: Generated data: KPCam.id3.png
-# iclient -> q1335
-# q1235 -> iclient
-# 0012 [iclient]: Do action against: KPCam.id0.png
-# q1335 -> ibundle
-# 0012 [ibundle]: Do action against: DECam.id0.png
-# KPCam -> q1235
-# 0016 [KPCam]: Generated data: KPCam.id4.png
-# DECam -> q1235
-# 0017 [DECam]: Generated data: DECam.id3.png
-# DECam -> q1235
-# 0019 [DECam]: Generated data: DECam.id4.png
-# 0020 [monitorQ]: q1235 8 ITEMS: ['DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0020 [monitorQ]: NSA 0 ITEMS: []
-# 0020 [monitorQ]: archive 0 ITEMS: []
-# ibundle -> q1435
-# q1435 -> iunbundle
-# 0026 [iunbundle]: Do action against: DECam.id0.png
-# 0030 [monitorQ]: q1235 8 ITEMS: ['DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0030 [monitorQ]: NSA 0 ITEMS: []
-# 0030 [monitorQ]: archive 0 ITEMS: []
-# iclient -> q1335
-# q1235 -> iclient
-# 0032 [iclient]: Do action against: DECam.id1.png
-# q1335 -> ibundle
-# 0032 [ibundle]: Do action against: KPCam.id0.png
-# iunbundle -> q1735
-# q1735 -> iclient
-# 0035 [iclient]: Do action against: DECam.id0.png
-# 0040 [monitorQ]: q1235 7 ITEMS: ['KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0040 [monitorQ]: NSA 0 ITEMS: []
-# 0040 [monitorQ]: archive 0 ITEMS: []
-# iclient -> q1335
-# q1235 -> iclient
-# 0042 [iclient]: Do action against: KPCam.id1.png
-# ibundle -> q1435
-# q1335 -> ibundle
-# 0047 [ibundle]: Do action against: DECam.id1.png
-# q1435 -> iunbundle
-# 0047 [iunbundle]: Do action against: KPCam.id0.png
-# 0050 [monitorQ]: q1235 6 ITEMS: ['KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0050 [monitorQ]: NSA 0 ITEMS: []
-# 0050 [monitorQ]: archive 0 ITEMS: []
-# iclient -> q1335
-# q1235 -> iclient
-# 0052 [iclient]: Do action against: KPCam.id2.png
-# iclient -> q8335
-# q8335 -> submit
-# 0055 [submit]: Do action against: DECam.id0.png
-# ibundle -> q1435
-# iunbundle -> q1735
-# q1335 -> ibundle
-# 0058 [ibundle]: Do action against: KPCam.id1.png
-# q1435 -> iunbundle
-# 0058 [iunbundle]: Do action against: DECam.id1.png
-# q1735 -> iclient
-# 0058 [iclient]: Do action against: KPCam.id0.png
-# 0060 [monitorQ]: q1235 5 ITEMS: ['DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0060 [monitorQ]: NSA 0 ITEMS: []
-# 0060 [monitorQ]: archive 0 ITEMS: []
-# submit -> archive
-# iclient -> q1335
-# q1235 -> iclient
-# 0063 [iclient]: Do action against: DECam.id2.png
-# 0070 [monitorQ]: q1235 4 ITEMS: ['KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0070 [monitorQ]: NSA 0 ITEMS: []
-# 0070 [monitorQ]: archive 1 ITEMS: ['DECam.id0.png']
-# iunbundle -> q1735
-# iclient -> q1335
-# q1235 -> iclient
-# 0072 [iclient]: Do action against: KPCam.id3.png
-# iclient -> q8335
-# q1735 -> iclient
-# 0073 [iclient]: Do action against: DECam.id1.png
-# q8335 -> submit
-# 0073 [submit]: Do action against: KPCam.id0.png
-# ibundle -> q1435
-# q1335 -> ibundle
-# 0075 [ibundle]: Do action against: KPCam.id2.png
-# q1435 -> iunbundle
-# 0075 [iunbundle]: Do action against: KPCam.id1.png
-# submit -> archive
-# 0080 [monitorQ]: q1235 3 ITEMS: ['KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0080 [monitorQ]: NSA 0 ITEMS: []
-# 0080 [monitorQ]: archive 2 ITEMS: ['DECam.id0.png', 'KPCam.id0.png']
-# iclient -> q1335
-# iunbundle -> q1735
-# q1235 -> iclient
-# 0081 [iclient]: Do action against: KPCam.id4.png
-# iclient -> q8335
-# q1735 -> iclient
-# 0084 [iclient]: Do action against: KPCam.id1.png
-# q8335 -> submit
-# 0084 [submit]: Do action against: DECam.id1.png
-# ibundle -> q1435
-# q1335 -> ibundle
-# 0088 [ibundle]: Do action against: DECam.id2.png
-# q1435 -> iunbundle
-# 0088 [iunbundle]: Do action against: KPCam.id2.png
-# 0090 [monitorQ]: q1235 2 ITEMS: ['DECam.id3.png', 'DECam.id4.png']
-# 0090 [monitorQ]: NSA 0 ITEMS: []
-# 0090 [monitorQ]: archive 2 ITEMS: ['DECam.id0.png', 'KPCam.id0.png']
-# iclient -> q8335
-# submit -> archive
-# q8335 -> submit
-# 0091 [submit]: Do action against: KPCam.id1.png
-# iclient -> q1335
-# q1235 -> iclient
-# 0095 [iclient]: Do action against: DECam.id3.png
-# 0100 [monitorQ]: q1235 1 ITEMS: ['DECam.id4.png']
-# 0100 [monitorQ]: NSA 0 ITEMS: []
-# 0100 [monitorQ]: archive 3 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png']
-# ibundle -> q1435
-# q1335 -> ibundle
-# 0102 [ibundle]: Do action against: KPCam.id3.png
-# iunbundle -> q1735
-# q1435 -> iunbundle
-# 0106 [iunbundle]: Do action against: DECam.id2.png
-# q1735 -> iclient
-# 0106 [iclient]: Do action against: KPCam.id2.png
-# submit -> archive
-# 0110 [monitorQ]: q1235 1 ITEMS: ['DECam.id4.png']
-# 0110 [monitorQ]: NSA 0 ITEMS: []
-# 0110 [monitorQ]: archive 4 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png']
-# iclient -> q8335
-# q8335 -> submit
-# 0112 [submit]: Do action against: KPCam.id2.png
-# iclient -> q1335
-# q1235 -> iclient
-# 0113 [iclient]: Do action against: DECam.id4.png
-# ibundle -> q1435
-# q1335 -> ibundle
-# 0119 [ibundle]: Do action against: KPCam.id4.png
-# iunbundle -> q1735
-# 0120 [monitorQ]: q1235 0 ITEMS: []
-# 0120 [monitorQ]: NSA 0 ITEMS: []
-# 0120 [monitorQ]: archive 4 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png']
-# q1435 -> iunbundle
-# 0120 [iunbundle]: Do action against: KPCam.id3.png
-# q1735 -> iclient
-# 0120 [iclient]: Do action against: DECam.id2.png
-# ibundle -> q1435
-# q1335 -> ibundle
-# 0126 [ibundle]: Do action against: DECam.id3.png
-# iclient -> q1335
-# 0130 [monitorQ]: q1235 0 ITEMS: []
-# 0130 [monitorQ]: NSA 0 ITEMS: []
-# 0130 [monitorQ]: archive 4 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png']
-# iclient -> q8335
-# submit -> archive
-# q8335 -> submit
-# 0132 [submit]: Do action against: DECam.id2.png
-# ibundle -> q1435
-# q1335 -> ibundle
-# 0133 [ibundle]: Do action against: DECam.id4.png
-# iunbundle -> q1735
-# q1435 -> iunbundle
-# 0139 [iunbundle]: Do action against: KPCam.id4.png
-# q1735 -> iclient
-# 0139 [iclient]: Do action against: KPCam.id3.png
-# 0140 [monitorQ]: q1235 0 ITEMS: []
-# 0140 [monitorQ]: NSA 0 ITEMS: []
-# 0140 [monitorQ]: archive 5 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png']
-# ibundle -> q1435
-# submit -> archive
-# iclient -> q8335
-# 0150 [monitorQ]: q1235 0 ITEMS: []
-# 0150 [monitorQ]: NSA 0 ITEMS: []
-# 0150 [monitorQ]: archive 6 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png']
-# q8335 -> submit
-# 0150 [submit]: Do action against: KPCam.id3.png
-# iunbundle -> q1735
-# q1435 -> iunbundle
-# 0153 [iunbundle]: Do action against: DECam.id3.png
-# q1735 -> iclient
-# 0153 [iclient]: Do action against: KPCam.id4.png
-# 0160 [monitorQ]: q1235 0 ITEMS: []
-# 0160 [monitorQ]: NSA 0 ITEMS: []
-# 0160 [monitorQ]: archive 6 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png']
-# iunbundle -> q1735
-# q1435 -> iunbundle
-# 0164 [iunbundle]: Do action against: DECam.id4.png
-# submit -> archive
-# 0170 [monitorQ]: q1235 0 ITEMS: []
-# 0170 [monitorQ]: NSA 0 ITEMS: []
-# 0170 [monitorQ]: archive 7 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png']
-# iclient -> q8335
-# q1735 -> iclient
-# 0171 [iclient]: Do action against: DECam.id3.png
-# q8335 -> submit
-# 0171 [submit]: Do action against: KPCam.id4.png
-# iunbundle -> q1735
-# 0180 [monitorQ]: q1235 0 ITEMS: []
-# 0180 [monitorQ]: NSA 0 ITEMS: []
-# 0180 [monitorQ]: archive 7 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png']
-# iclient -> q8335
-# q1735 -> iclient
-# 0183 [iclient]: Do action against: DECam.id4.png
-# submit -> archive
-# q8335 -> submit
-# 0185 [submit]: Do action against: DECam.id3.png
-# iclient -> q8335
-# 0190 [monitorQ]: q1235 0 ITEMS: []
-# 0190 [monitorQ]: NSA 0 ITEMS: []
-# 0190 [monitorQ]: archive 8 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png']
-# submit -> archive
-# q8335 -> submit
-# 0191 [submit]: Do action against: DECam.id4.png
-# 0200 [monitorQ]: q1235 0 ITEMS: []
-# 0200 [monitorQ]: NSA 0 ITEMS: []
-# 0200 [monitorQ]: archive 9 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png']
-# submit -> archive
-# 0210 [monitorQ]: q1235 0 ITEMS: []
-# 0210 [monitorQ]: NSA 0 ITEMS: []
-# 0210 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0220 [monitorQ]: q1235 0 ITEMS: []
-# 0220 [monitorQ]: NSA 0 ITEMS: []
-# 0220 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0230 [monitorQ]: q1235 0 ITEMS: []
-# 0230 [monitorQ]: NSA 0 ITEMS: []
-# 0230 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0240 [monitorQ]: q1235 0 ITEMS: []
-# 0240 [monitorQ]: NSA 0 ITEMS: []
-# 0240 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0250 [monitorQ]: q1235 0 ITEMS: []
-# 0250 [monitorQ]: NSA 0 ITEMS: []
-# 0250 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0260 [monitorQ]: q1235 0 ITEMS: []
-# 0260 [monitorQ]: NSA 0 ITEMS: []
-# 0260 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0270 [monitorQ]: q1235 0 ITEMS: []
-# 0270 [monitorQ]: NSA 0 ITEMS: []
-# 0270 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0280 [monitorQ]: q1235 0 ITEMS: []
-# 0280 [monitorQ]: NSA 0 ITEMS: []
-# 0280 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0290 [monitorQ]: q1235 0 ITEMS: []
-# 0290 [monitorQ]: NSA 0 ITEMS: []
-# 0290 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0300 [monitorQ]: q1235 0 ITEMS: []
-# 0300 [monitorQ]: NSA 0 ITEMS: []
-# 0300 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0310 [monitorQ]: q1235 0 ITEMS: []
-# 0310 [monitorQ]: NSA 0 ITEMS: []
-# 0310 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0320 [monitorQ]: q1235 0 ITEMS: []
-# 0320 [monitorQ]: NSA 0 ITEMS: []
-# 0320 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0330 [monitorQ]: q1235 0 ITEMS: []
-# 0330 [monitorQ]: NSA 0 ITEMS: []
-# 0330 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0340 [monitorQ]: q1235 0 ITEMS: []
-# 0340 [monitorQ]: NSA 0 ITEMS: []
-# 0340 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0350 [monitorQ]: q1235 0 ITEMS: []
-# 0350 [monitorQ]: NSA 0 ITEMS: []
-# 0350 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0360 [monitorQ]: q1235 0 ITEMS: []
-# 0360 [monitorQ]: NSA 0 ITEMS: []
-# 0360 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0370 [monitorQ]: q1235 0 ITEMS: []
-# 0370 [monitorQ]: NSA 0 ITEMS: []
-# 0370 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0380 [monitorQ]: q1235 0 ITEMS: []
-# 0380 [monitorQ]: NSA 0 ITEMS: []
-# 0380 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
-# 0390 [monitorQ]: q1235 0 ITEMS: []
-# 0390 [monitorQ]: NSA 0 ITEMS: []
-# 0390 [monitorQ]: archive 10 ITEMS: ['DECam.id0.png', 'KPCam.id0.png', 'DECam.id1.png', 'KPCam.id1.png', 'KPCam.id2.png', 'DECam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png', 'DECam.id3.png', 'DECam.id4.png']
+WARNING: No simulation for some nodes.  (type=count): d=3
 #######################################################
-###  Simulation done. ARCHIVE:
-0 of 40 get slots are allocated.
-0 of 40 put slots are allocated.
-Queued 10 ITEMS: ['DECam.id0.png', 'DECam.id1.png', 'DECam.id2.png', 'DECam.id3.png', 'DECam.id4.png', 'KPCam.id0.png', 'KPCam.id1.png', 'KPCam.id2.png', 'KPCam.id3.png', 'KPCam.id4.png']
-#######################################################
+Simulation done at time: 500.
+Dataq use summary:
+            Queue    Put   Max 
+             Name  Count  Used Comment
+        dsan3.NSA:    97    97 
+      dsan3.q1535:    10     1 
+      dsan3.q1635:    10     1 
+      dsan3.q1735:    10     5 
+      dsan3.q1934:     5     1 
+      dsan3.q8335:   121    23 
+      dsan3.q8336:    97     1 
+      dsan3.q9435:    10     1 
+   dsas3.NOWHERE1:     0     0 WARNING: unused
+      dsas3.q2535:    10     1 
+      dsas3.q2635:    10     1 
+      dsas3.q2735:    10     5 
+      dsas3.q9635:    10     1 
+      dtscp.q3135:     5     1 
+      dtscp.q3335:     5     1 
+      dtscp.q3435:     5     1 
+      dtsct.q2135:     5     1 
+      dtsct.q2335:     5     1 
+      dtsct.q2435:     5     1 
+      dtskp.q1235:     5     1 
+      dtskp.q1335:     5     1 
+      dtskp.q1435:     5     1 
+     dtstuc.q6135:     5     1 
+     dtstuc.q6235:     5     1 
+     dtstuc.q6435:     5     1 
+
+NSA (archive) summary:
+  Queued 97 total items
+  Contains 25 unique items:
+	dsan3.UNKNOWN.000.png, dsan3.UNKNOWN.001.png, dsan3.UNKNOWN.002.png, dsan3.UNKNOWN.003.png, dsan3.UNKNOWN.004.png, dtscp.CP.000.png, dtscp.CP.001.png, dtscp.CP.002.png, dtscp.CP.003.png, dtscp.CP.004.png, dtsct.CT.000.png, dtsct.CT.001.png, dtsct.CT.002.png, dtsct.CT.003.png, dtsct.CT.004.png, dtskp.DECam.000.png, dtskp.DECam.001.png, dtskp.DECam.002.png, dtskp.DECam.003.png, dtskp.DECam.004.png, dtstuc.pipeline.000.png, dtstuc.pipeline.001.png, dtstuc.pipeline.002.png, dtstuc.pipeline.003.png, dtstuc.pipeline.004.png

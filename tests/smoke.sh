@@ -27,9 +27,10 @@ echo ""
 echo ""
 
 
+dotfile=sdm-dci-dataflow.dot
 fg1=feed_graphite.out
-testCommand dim1_1 "dfsim.py $fg1 2>&1" "^\#" n
-testOutput out $fg1 '^\#' n
+testCommand dim1_1 "dfsim.py --profile $dotfile $fg1 2>&1" "^\#" n
+#!testOutput out $fg1 '^\#' n
 
 
 ###########################################
