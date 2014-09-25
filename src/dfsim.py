@@ -78,24 +78,34 @@ def print_summary(env, G, summarizeNodes=[]):
                 'WARNING: unused' if qmap[name].hiwater == 0 else ''
             ))
     print()
+
+    siList = simpy.Store.instances
+    if len(siList) > 0:
+        print('Store use summary (%d):'%len(siList))
+        for si in siList:
+            print('\t Edge %s: putcount=%d'
+                  %(si.edge,
+                    getattr(si, 'putcount',-1)
+                ))
+
     
     for nid in summarizeNodes:
-        archive = G.node[nid]['sim']
+        dq = G.node[nid]['sim']
         #!print('%d of %s get slots are allocated.' 
-        #!      % (len(archive.get_queue),archive.capacity))
+        #!      % (len(dq.get_queue),dq.capacity))
         #!
         #!print('%d of %s put slots are allocated.' 
-        #!      % (len(archive.put_queue),archive.capacity))
+        #!      % (len(dq.put_queue),dq.capacity))
 
-        #print('NSA contains %d items'% (archive.level))
+        #print('NSA contains %d items'% (dq.level))
         print('\nSummary of node "%s":'%nid)
-        print('  Queued %d total items' % (len(archive.items),))
+        print('  Queued %d total items' % (len(dq.items),))
         #!print('  Queued %d total items:\n\t%s'
-        #!      % (len(archive.items),
-        #!         '\n\t'.join(sorted(archive.items))))
+        #!      % (len(dq.items),
+        #!         '\n\t'.join(sorted(dq.items))))
         print('  Contains %d unique items:\n\t%s' 
-              % (len(set(archive.items)),
-                 ', '.join(sorted(set(archive.items)))))
+              % (len(set(dq.items)),
+                 ', '.join(sorted(set(dq.items)))))
 
 
 
@@ -151,7 +161,7 @@ class DciInstrument():
 
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
 
-    def generateData(self, out_pipe):
+    def generateData(self, out_pipes):
         '''Generates data records such as pictures, but could be any instrument 
         in the telescope. '''
         name = self.name
@@ -160,7 +170,8 @@ class DciInstrument():
         for cid in range(self.count):
             yield self.env.timeout(self.start_delay)
             msg = '%s.%s.%03d.png' % (self.host,self.name, cid)
-            out_pipe.put(msg)
+            for out_pipe in out_pipes:
+                out_pipe.put(msg)
             logging.info('# t=%04d [%s]: Generated data: %s'
                   %(self.env.now, self.name, msg))
 
@@ -190,6 +201,7 @@ class DciAction():
             # Get event for message pipe
             msgList = []
             for in_pipe in in_pipes:
+                logging.debug('Action (%s) get from %s'%(self.nid,in_pipe))
                 res = yield in_pipe.get()
                 m = res[0] if isinstance(res,tuple) else res
                 msgList.append(m)
@@ -217,7 +229,36 @@ def monitorQ(env, dataq, delay=1):
         #!logging.debug('# %04d [monitorQ]: %s %d ITEMS'
         #!              % (env.now, dataq.name, len(dataq.items)))
 
-            
+
+def printGraphSummary(G):
+    logging.info('Graph summary:')
+    logging.info(nx.info(G))
+
+    nodeTypeCnt = defaultdict(int) # diag!!!
+    for n,d in G.nodes_iter(data=True):
+        ntype = d.get('type')
+        nodeTypeCnt[ntype] += 1 # diag!!!
+        in_pipes = [d0['pipe']
+                    for u,v,d0 in G.in_edges(n,data=True)
+                    if ('pipe' in d0)]
+        out_pipes = [d1['pipe'] 
+                     for u,v,d1 in G.out_edges(n,data=True)
+                     if ('pipe' in d1) ]
+        logging.info('Node %8s: num in,out-pipes=(%d,%d)'
+                     %(n,len(in_pipes),len(out_pipes)))
+
+    edgeTypeCnt = defaultdict(int) # diag!!!
+    for u,v,d in G.edges_iter(data=True):
+        etype = G.node[u]['type'] + G.node[v]['type']
+        edgeTypeCnt[etype] += 1 # diag!!!
+
+    logging.info('nodeTypeCnt: %s' 
+          % ', '.join(['%s=%d'%(k,v) for (k,v) in nodeTypeCnt.items()]))
+
+    logging.info('edgeTypeCnt: %s' 
+          % ', '.join(['%s=%d'%(k,v) for (k,v) in edgeTypeCnt.items()]))
+
+
 def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
@@ -227,20 +268,20 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     nodeLUT = dict() # nodeLUT[node] = simInstance
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
-    logging.info(nx.info(G))
     if draw:
         print('Displaying dataflow graph')
         fig = literate.drawDfGraph(G)
     #! print('Content of loaded graph:')
     #! pprint(G.nodes(data=True))
 
+    ##
+    ## Stuff sim instances into graph NODES
+    ##
     cpuLUT = dict() # cpuLUT[hostname] = resource
     noNodeSimCnt = defaultdict(int) # dict[ntype] = count
-    nodeTypeCnt = defaultdict(int) # diag!!!
     for n,d in G.nodes_iter(data=True):
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
         ntype = d.get('type')
-        nodeTypeCnt[ntype] += 1 # diag!!!
 
         # Map node types to Simpy instances (not exhaustive)
         if ntype == 's':
@@ -259,9 +300,6 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         else:
             noNodeSimCnt[ntype] += 1
 
-    logging.info('nodeTypeCnt: %s' 
-          % ', '.join(['%s=%d'%(k,v) for (k,v) in nodeTypeCnt.items()]))
-
     if len(noNodeSimCnt) > 0:
         print('WARNING: No simulation for some nodes.  (type=count): %s'
               %(', '.join(['%s=%d'%(k,v) for k,v in noNodeSimCnt.items()])))
@@ -269,25 +307,34 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     if profile:
         addProfiling(G)
 
+    ##
+    ## Stuff sim instances into graph EDGES
+    ##
     # Create "link" elements of simulation based upon type of edge
     # Edge type is ordered character pair of black/white node type.
-    edgeTypeCnt = defaultdict(int) # diag!!!
     for u,v,d in G.edges_iter(data=True):
         ud = G.node[u]	
         vd = G.node[v]	
         etype = ud['type'] + vd['type']
-        edgeTypeCnt[etype] += 1 # diag!!!
         
         # Map edge types to Simpy "connection instances" (not exhaustive)
         noEdgeSimCnt = defaultdict(int) # dict[ntype] = count
         if etype == 'sa':
             d['pipe'] = simpy.Store(env,capacity=1)
+            if not hasattr(simpy.Store,'instances'):
+                simpy.Store.instances = []
+            simpy.Store.instances.append(d['pipe'])
+            d['pipe'].edge=(u,v)
         elif etype == 'aa':
             d['pipe'] = simpy.Store(env,capacity=1)
+            if not hasattr(simpy.Store,'instances'):
+                simpy.Store.instances = []
+            simpy.Store.instances.append(d['pipe'])
+            d['pipe'].edge=(u,v)
         elif etype == 'qa':
             d['pipe'] = ud['sim']
         elif etype == 'at':
-            d['pipe'] = simpy.Store(env,capacity=1)
+            d['pipe'] = vd['sim']
         elif etype == 'aq':
             d['pipe'] = vd['sim']
         elif etype == 'sq':
@@ -300,22 +347,22 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
               %(', '.join(['%s=%d'%(k,v) for k,v in noEdgeSimCnt.items()])))
         
             
-    logging.info('edgeTypeCnt: %s' 
-          % ', '.join(['%s=%d'%(k,v) for (k,v) in edgeTypeCnt.items()]))
-        
-    # Create simulation processes
+    
+    ##
+    ## Create simulation processes
+    ##
     for n,d in G.nodes_iter(data=True):
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
 
         if d.get('type') == 's':
-            for u,v,di in G.out_edges(n,data=True):
-                if 'pipe' not in di: 
-                    continue
+            out_pipes = [d1['pipe'] 
+                         for u,v,d1 in G.out_edges(n,data=True)
+                         if ('pipe' in d1) ]
 
-                env.process(d['sim'].generateData(di['pipe']))
-                createdProcesses += 1
-                logging.info('Create DATA generator for %s. Out=%s'
-                      %(n,di['pipe'].__class__.__name__))
+            env.process(d['sim'].generateData(out_pipes))
+            createdProcesses += 1
+            logging.info('Create DATA generator for %s. Out=%s'
+                  %(n,out_pipes))
 
         elif d.get('type') == 'q':
             env.process( monitorQ(env, d['sim'] ))
@@ -349,6 +396,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 
     logging.debug('%d processes started'%(createdProcesses))
     logging.debug('Next event starts at: %s'%(env.peek()))
+    
     return G
     # END setupDataflowNetwork()
 
@@ -368,6 +416,17 @@ def addProfiling(G):
         Dataq.put = putDataqWithCount
         setattr(Dataq,'monkey',True)
 
+    if not hasattr(simpy.Store,'monkey'):
+        origStorePut = simpy.Store.put
+        def putStoreWithCount(self,data):
+            instance = self
+            setattr(instance,'putcount', 1 + getattr(instance,'putcount',0))
+            logging.debug('Set simpy.Store %s pcount=%d'
+                          %(instance, getattr(instance,'putcount',-1)))
+            return origStorePut(self,data)
+        simpy.Store.put = putStoreWithCount
+        setattr(simpy.Store,'monkey',True)
+
 
     for n,d in G.nodes_iter(data=True):
         if 'sim' not in d:
@@ -378,8 +437,8 @@ def addProfiling(G):
             pass
         elif isinstance(si,Dataq):
             Dataq.instances.append(si)
-        elif isinstance(si, simpy.Container):
-            pass
+        elif isinstance(si, simpy.Store):
+            simpy.Store.instances.append(si)
         elif isinstance(si,DciInstrument):
             pass
     #!print('Dataq.instances = ',Dataq.instances)
@@ -440,6 +499,11 @@ def main():
 
     env = simpy.Environment()
     G = setupDataflowNetwork(env, args.infile, profile=args.profile)
+    
+    if args.loglevel == 'DEBUG':
+        printGraphSummary(G)
+
+
     env.run(until=5*1e2)
     print_summary(env,G, summarizeNodes=args.summarize)
 
