@@ -120,44 +120,6 @@ class Monitor():
         if self.file:
             self.file.close()
 
-def q_in(when, src, q, data):
-    q.put(data)
-    #feed_graphite('dataq.%s'%q.name, len(q.items), when)          
-    print('# %s -> %s'%(src, q.name))
-
-# BROKEN; returns generator object instead of msg value
-def q_out(when, dest, q):
-    msg = yield q.get()
-    print('# %s -> %s'%(q.name, dest))
-    #feed_graphite('dataq.%s'%q.name, len(q.items), when)          
-    return msg
-
-
-# PRODUCER (really the whole iSTB upto DciArchT)
-def camera(env, name, dataq, shots=5):
-    '''Generates data records such as pictures, but could be any instrument 
-in the telescope. '''
-    logging.debug('Starting "%s" CAMERA to generate %d pictures. Send to %s'
-                  %(name,shots,dataq.name))
-    for cid in range(shots):
-        yield env.timeout(random.randint(1,7))
-        msg = '%s.id%d.png' % (name, cid)
-        q_in(env.now, name, dataq, msg)
-        logging.info('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
-
-# data PRODUCER  (generator)
-def instrument(env, name, count=5):
-    '''Generates data records such as pictures, but could be any instrument 
-in the telescope. '''
-    logging.debug('Starting "%s" INSTRUMENT to generate %d files.'
-                  %(name,count))
-    for cid in range(count):
-        yield env.timeout(random.randint(1,7))
-        msg = '%s.id%d.png' % (name, cid)
-        print('# %04d [%s]: Generated data: %s' %(env.now, name, msg))
-        return msg
-
-
 class Dataq(simpy.Store):
     '''Data Queue.'''
     instances = list()
@@ -215,10 +177,14 @@ class DciAction():
 
 
     def generateAction(self, in_pipes, out_pipes):
+        logging.debug('Starting action generator for "%s"'
+                      %(self.nid))
+
         if len(in_pipes) > 1:
             logging.warning(
                 'More than 1 input to node "%s". Getting msg from all.'
                 %(self.nid))
+
 
         while True:
             # Get event for message pipe
@@ -229,12 +195,12 @@ class DciAction():
                 msgList.append(m)
             msg = ','.join(msgList)
                 
-            logging.debug('[dataAction] delay %s seconds; %s@%s'
-                          %(self.start_delay, self.nid, self.env.now ))
+            logging.debug('[t:%d] DELAY action "%s" for %d seconds'
+                          %(self.env.now,  self.nid, self.start_delay))
             yield self.env.timeout(self.start_delay)
             result = self.action(msg)
-            logging.debug('END action "%s"; msg="%s", result="%s"'
-                          %(self.nid, msg, result))
+            logging.debug('[t:%d] END action "%s"; msg="%s", result="%s"'
+                          %(self.env.now, self.nid, msg, result))
             for out_pipe in out_pipes:
                 out_pipe.put(result)
 
@@ -251,20 +217,7 @@ def monitorQ(env, dataq, delay=1):
         #!logging.debug('# %04d [monitorQ]: %s %d ITEMS'
         #!              % (env.now, dataq.name, len(dataq.items)))
 
-# return target node
-def downstreamMatch(G, startNode, targetNodeType, maxHop=4):
-    if maxHop == 0:
-        return(None)
-    if G.node[startNode].get('type') == targetNodeType:
-        return(startNode)
-    else:
-        for n in G.successors(startNode):
-            return(downstreamMatch(G, n, targetNodeType, maxHop=maxHop-1))
             
-class SimType(Enum):
-    generator = 1
-    resource = 2
-
 def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     random.seed(42) # make it reproducible?
     nqLUT = dict() # nqLUT[node] = Dataq instance
@@ -272,14 +225,6 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     createdProcesses = 0
 
     nodeLUT = dict() # nodeLUT[node] = simInstance
-    simTypeLUT = dict( # LUT[nodeType] = simType
-        s = SimType.generator,
-        q = SimType.resource,
-        a = SimType.generator,
-        t = SimType.resource,
-        d = SimType.resource
-        )
-
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
     logging.info(nx.info(G))
@@ -293,7 +238,6 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     noNodeSimCnt = defaultdict(int) # dict[ntype] = count
     nodeTypeCnt = defaultdict(int) # diag!!!
     for n,d in G.nodes_iter(data=True):
-        #simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
         ntype = d.get('type')
         nodeTypeCnt[ntype] += 1 # diag!!!
@@ -361,7 +305,6 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         
     # Create simulation processes
     for n,d in G.nodes_iter(data=True):
-        simType = simTypeLUT[d.get('type')]
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
 
         if d.get('type') == 's':
@@ -404,16 +347,6 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     #!print('  EDGES:')
     #!pprint(G.edges(data=True))
 
-#!            preds = [p for p in G.predecessors(n)
-#!                     if ((G.node[p]['type'] == 'q') 
-#!                         or (G.node[p]['type'] == 's') )]
-#!            if len(preds) == 0:
-#!                return None
-#!            elif len([p for p in preds if G.node[p]['type'] == 'q']) > 1:
-#!                raise RuntimeError(
-#!                  'Action can only be connected to one in queue. Got %d (%s)'%
-
-    
     logging.debug('%d processes started'%(createdProcesses))
     logging.debug('Next event starts at: %s'%(env.peek()))
     return G
@@ -505,12 +438,9 @@ def main():
     if args.graphite:
         monitor = Monitor(args.graphite)
 
-    #!simulate(infile)
     env = simpy.Environment()
-    #!simpy.util.trace(env,stepTrace=stepTraceFunc)
     G = setupDataflowNetwork(env, args.infile, profile=args.profile)
     env.run(until=5*1e2)
-    print('DBG-00',args.summarize)
     print_summary(env,G, summarizeNodes=args.summarize)
 
     if args.graphite:

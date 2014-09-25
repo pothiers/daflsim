@@ -55,7 +55,7 @@ def drawDfGraph(G,figTitle='SDM Dataflow'):
 
     nx.draw_networkx_edges(G,pos=pos)
 
-    labels = dict([(k,v['label']) for (k,v) in G.nodes(data=True)])
+    labels = dict([(k,v.get('label',k)) for (k,v) in G.nodes(data=True)])
     nx.draw_networkx_labels(G,pos=pos, labels=labels)
     #!f = plt.gcf()
     fig.suptitle(figTitle)    
