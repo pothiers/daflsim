@@ -61,33 +61,35 @@ def print_summary(env, G, summarizeNodes=[]):
     print('#'*55)
     print('Simulation done at time: %d.'%(env.now))
 
-    qmap = dict() # qmap[name] = Dataq
-    #!for dq in Dataq.instances:
-    for n,d in G.nodes_iter(data=True):
-        if ('sim' in d) and isinstance(d['sim'],Dataq):
-            qmap[d['sim'].name] = d['sim']
+    
+    if G.graph.get('profile',False):
+        qmap = dict() # qmap[name] = Dataq
+        #!for dq in Dataq.instances:
+        for n,d in G.nodes_iter(data=True):
+            if ('sim' in d) and isinstance(d['sim'],Dataq):
+                qmap[d['sim'].name] = d['sim']
 
-    print('Dataq use summary:')
-    print('  %15s  %5s %5s %s'%('Queue', 'Put',   'Max',  ''))
-    print('  %15s  %5s %5s %s'%('Name' , 'Count', 'Used', 'Comment'))
-    for name in sorted(qmap.keys()):
-        print('  %15s: %5d %5d %s'
-              %(name,
-                qmap[name].putcount,
-                qmap[name].hiwater,
-                'WARNING: unused' if qmap[name].hiwater == 0 else ''
-            ))
-    print()
-
-    siList = simpy.Store.instances
-    siList.sort(key=lambda x: x.edge)
-    if len(siList) > 0:
-        print('Store use summary (%d):'%len(siList))
-        for si in siList:
-            print('\t Edge %s: putcount=%d'
-                  %(si.edge,
-                    getattr(si, 'putcount',-1)
+        print('Dataq use summary:')
+        print('  %15s  %5s %5s %s'%('Queue', 'Put',   'Max',  ''))
+        print('  %15s  %5s %5s %s'%('Name' , 'Count', 'Used', 'Comment'))
+        for name in sorted(qmap.keys()):
+            print('  %15s: %5d %5d %s'
+                  %(name,
+                    qmap[name].putcount,
+                    qmap[name].hiwater,
+                    'WARNING: unused' if qmap[name].hiwater == 0 else ''
                 ))
+        print()
+
+        siList = simpy.Store.instances
+        siList.sort(key=lambda x: x.edge)
+        if len(siList) > 0:
+            print('Store use summary (%d):'%len(siList))
+            for si in siList:
+                print('\t Edge %s: putcount=%d'
+                      %(si.edge,
+                        getattr(si, 'putcount',-1)
+                    ))
 
     
     for nid in summarizeNodes:
@@ -407,6 +409,8 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 def addProfiling(G):
     simpy.Container.instances = list()
     Dataq.instances = list()
+    
+    G.graph['profile'] = True
 
     # Monkey patch PUT to count messages
     if not hasattr(Dataq,'monkey'):

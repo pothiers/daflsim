@@ -1,0 +1,23 @@
+#######################################################
+Simulation done at time: 500.
+Dataq use summary:
+            Queue    Put   Max 
+             Name  Count  Used Comment
+           H1.end:    10    10 
+
+Store use summary (10):
+	 Edge ('a0', 'a1'): putcount=5
+	 Edge ('a1', 'a2'): putcount=5
+	 Edge ('a1', 'b3'): putcount=5
+	 Edge ('a2', 'a3'): putcount=5
+	 Edge ('b0', 'b1'): putcount=5
+	 Edge ('b1', 'b2'): putcount=5
+	 Edge ('b2', 'a3'): putcount=5
+	 Edge ('b2', 'b3'): putcount=5
+	 Edge ('start', 'a0'): putcount=5
+	 Edge ('start', 'b0'): putcount=5
+
+Summary of node "end":
+  Queued 10 total items
+  Contains 5 unique items:
+	H1.sample.000.png,H1.sample.000.png, H1.sample.001.png,H1.sample.001.png, H1.sample.002.png,H1.sample.002.png, H1.sample.003.png,H1.sample.003.png, H1.sample.004.png,H1.sample.004.png

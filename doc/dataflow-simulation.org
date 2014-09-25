@@ -1,0 +1,44 @@
+* COMMENT SDM
+see also ~/org/sdm.org
+
+Intended to span from STB output (first queue) to /submit_to_archive2.pl/
+
+* How graph edges related to simulation
+Each graph edge represents data flow between two simulated
+object. (see "node types") The types of the nodes on either end of an
+edge determine how to link two with simpy.   When neither ends of an
+edge is a simpy.Resource, something must be done to insure
+the two are simulated sequentially.  This is done by creating an
+intervening (simpy) resource. The resource might be viewed as
+artificial, but it could also be viewed as a common resource that is
+so implicit that we often don't think about it -- namely a CPU (or
+thread). For instance, the graph connects to Actions with an edge.
+The simulation must create two generators (one for each node of the
+edge ends) and a resource ("pipe") that connects them. The pipe
+insures that only one of the generator runs at a time AND provides a
+mechanism for the first to pass data to the second.
+
+
+* Input Graphviz (dot) file
+
+DES (Discrete Event Simulation) of data-flow. 
+
+Every node must be of one of the following node types:
+- s:: Source
+- q:: Queue
+- a:: Action
+- t:: Terminal
+- d:: Database
+
+Node attributes are stored in the dotfile (graphviz) nodes in the
+"comment" property. Format is: "name1='value2' name2='value2' ..."
+Possible attributes are:
+- type:: [default='a' if ACTION attribute present]
+- action:: [no default]
+- delay::  [default=0]   (minutes)
+- duration:: [default=0]
+- host::   [default="NA-host"]
+- cron:: [default=None] Hack to allow simulating previous system
+
+If an ACTION is given, then "type='a'" is implied.
+

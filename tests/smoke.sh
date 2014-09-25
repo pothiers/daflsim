@@ -27,12 +27,23 @@ echo ""
 echo ""
 
 
-dotfile=sdm-dci-dataflow.dot
+########################################
+## Very simple graph
+##
+testCommand dim2_0 "dfsim.py graphviz-sample1.dot" "^\#" n
+testCommand dim2_1 "dfsim.py --summarize end --profile graphviz-sample1.dot" "^\#" n
+
+########################################
+## A real DCI graph
+##
+dcidot=sdm-dci-dataflow.dot
+testCommand dim1_0 "dfsim.py $dcidot 2>&1" "^\#" n
+
 fg1=feed_graphite.out
-testCommand dim1_1 "dfsim.py --summarize NSA --profile $dotfile --graphite $fg1 2>&1" "^\#" n
+testCommand dim1_1 "dfsim.py --summarize NSA --profile $dcidot --graphite $fg1 2>&1" "^\#" n
+# Order varies
 #!testOutput out $fg1 '^\#' n
 
-testCommand dim1_2 "dfsim.py --summarize end --profile ../tests/graphviz-sample1.dot" "^\#" n
 
 ###########################################
 #! echo "WARNING: ignoring remainder of tests"

@@ -11,7 +11,7 @@ def nop(in_msg, probFail = 0.00, name='NOP'):
         return result
     else:
         raise RuntimeError('Execution of action "%s" FAILED'%(name,))
-
+        
 
 def stb(in_msg, probFail = 0.00):
     result = in_msg
