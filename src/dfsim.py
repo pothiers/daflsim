@@ -235,17 +235,14 @@ class DciAction():
 
 
 
-#!def monitorQ(env, dataq, delay=1):
-#!    if not monitor:
-#!        return
-#!    log = monitor.file
-#!    while True:
-#!        yield env.timeout(delay)
-#!        dataq.hiwater = max(dataq.hiwater,len(dataq.items))
-#!        feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
-#!        #!logging.debug('# %04d [monitorQ]: %s %d ITEMS'
-#!        #!              % (env.now, dataq.name, len(dataq.items)))
-#!
+def monitorQ(env, dataq, delay=1):
+    if not monitor:
+        return
+    log = monitor.file
+    while True:
+        yield env.timeout(delay)
+        feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
+
 
 def printGraphSummary(G):
     logging.info('Graph summary:')
@@ -382,9 +379,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
                   %(n,out_pipes))
 
         elif d.get('type') == 'q':
-            pass
-            #!env.process( monitorQ(env, d['sim'] ))
-            #!createdProcesses += 1
+            if monitor:
+                env.process( monitorQ(env, d['sim'] ))
+                createdProcesses += 1
         elif d.get('type') == 'a':
             in_pipes = [d0['pipe']
                         for u0,v0,d0 in G.in_edges(n,data=True)
