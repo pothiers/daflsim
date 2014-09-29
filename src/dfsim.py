@@ -114,9 +114,9 @@ def print_summary(env, G, summarizeNodes=[]):
         #!print('  Queued %d total items:\n\t%s'
         #!      % (len(dq.items),
         #!         '\n\t'.join(sorted(dq.items))))
-        print('  Contains %d unique items:\n\t%s' 
-              % (len(set(dq.items)),
-                 ', '.join(sorted(set(dq.items)))))
+        print('  Contains %d unique items:' 
+              % (len(set(dq.items))))
+        print('\n\t%s'%(', '.join(sorted(set(dq.items)))))
 
 
 
@@ -314,9 +314,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         else:
             noNodeSimCnt[ntype] += 1
 
-    if len(noNodeSimCnt) > 0:
-        print('WARNING: No simulation for some nodes.  (type=count): %s'
-              %(', '.join(['%s=%d'%(k,v) for k,v in noNodeSimCnt.items()])))
+    #!if len(noNodeSimCnt) > 0:
+    #!    print('WARNING: No simulation for some nodes.  (type=count): %s'
+    #!          %(', '.join(['%s=%d'%(k,v) for k,v in noNodeSimCnt.items()])))
     
     if profile:
         addProfiling(G)
@@ -356,9 +356,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         else:
             noEdgeSimCnt[etype] += 1
 
-    if len(noEdgeSimCnt) > 0:
-        print('WARNING: No simulation for some edges.  (type=count): %s'
-              %(', '.join(['%s=%d'%(k,v) for k,v in noEdgeSimCnt.items()])))
+    #!if len(noEdgeSimCnt) > 0:
+    #!    print('WARNING: No simulation for some edges.  (type=count): %s'
+    #!          %(', '.join(['%s=%d'%(k,v) for k,v in noEdgeSimCnt.items()])))
         
             
     

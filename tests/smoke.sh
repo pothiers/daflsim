@@ -40,7 +40,8 @@ dcidot=sdm-dci-dataflow.dot
 testCommand dim1_0 "dfsim.py $dcidot 2>&1" "^\#" n
 
 fg1=feed_graphite.out
-testCommand dim1_1 "dfsim.py --summarize NSA --profile $dcidot --graphite $fg1 2>&1" "^\#" n
+#!testCommand dim1_1 "dfsim.py --end 10000 --summarize NSA --profile $dcidot --graphite $fg1 2>&1" "^\#" n
+testCommand dim1_1 "dfsim.py --end 10000 --summarize NSA --profile $dcidot 2>&1" "^\#" n
 # Order varies
 #!testOutput out $fg1 '^\#' n
 

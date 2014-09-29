@@ -31,7 +31,7 @@ Every node must be of one of the following node types:
 - d:: Database
 
 Node attributes are stored in the dotfile (graphviz) nodes in the
-"comment" property. Format is: "name1='value2' name2='value2' ..."
+"tooltip" property. Format is: "name1='value2' name2='value2' ..."
 Possible attributes are:
 - action:: [no default] Node that performs external function. Implies type='a'
 - delay::  [default=0]   (minutes)
