@@ -39,6 +39,7 @@ import simpy
 import actions 
 import literate
 import defaultCfg
+import cron
 
 from pprint import pprint
 import networkx as nx
@@ -60,13 +61,20 @@ def stepTraceFunc(event):
 def print_summary(env, G, summarizeNodes=[]):
     print('#'*55)
     print('Simulation done at time: %d.'%(env.now))
+    print('Next event starts at: %s'%(env.peek()))
 
-    
-    if G.graph.get('profile',False):
+    # print profile if we collected data
+    if G.graph.get('profileCollected',False):
         qmap = dict() # qmap[name] = Dataq
         #!for dq in Dataq.instances:
         for n,d in G.nodes_iter(data=True):
             if ('sim' in d) and isinstance(d['sim'],Dataq):
+                instance = d['sim']
+                if not hasattr(instance,'putcount'):
+                    setattr(instance,'putcount',0)
+                if not hasattr(instance,'hiwater'):
+                    setattr(instance,'hiwater',0)
+
                 qmap[d['sim'].name] = d['sim']
 
         print('Dataq use summary:')
@@ -140,9 +148,7 @@ class Dataq(simpy.Store):
         logging.debug('Creating dataq: %s'%name)
         self.env = env
         self.name = name
-        #!self.hiwater = 0
         self.simType = 'q'
-        #!self.putcount = 0
         super().__init__(env,capacity=capacity)
         Dataq.instances.append(self)
 
@@ -179,7 +185,7 @@ class DciInstrument():
                   %(self.env.now, self.name, msg))
 
 class DciAction():
-    def __init__(self, env, action, cpu, nid):
+    def __init__(self, env, action, cpu, nid, G):
         global cfg
         self.env = env
         self.action = action
@@ -188,6 +194,9 @@ class DciAction():
         self.simType = 'a'
         self.nid = nid
         self.start_delay = cfg['action_delay'] #  use CRON data!!!
+        #!print('DBG-1',G.node[nid])
+        self. cronStr = G.node[nid]['cron'] if 'cron' in G.node[nid] else '* *'
+
 
 
     def generateAction(self, in_pipes, out_pipes):
@@ -201,6 +210,11 @@ class DciAction():
 
 
         while True:
+            next_time = cron.next_time(self.env.now,self.cronStr)
+            #!print('DBG-1: (now=%s) generate next data for node=%s at %s (%s)'
+            #!      %(self.env.now, self.nid, next_time, self.cronStr))
+            yield self.env.timeout(next_time)
+
             # Get event for message pipe
             msgList = []
             for in_pipe in in_pipes:
@@ -296,7 +310,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
                 func = eval('actions.'+d['action']) 
             else:
                 func = functools.partial(actions.nop,name=d['action'])
-            d['sim'] = DciAction(env, func, cpu, n)
+            d['sim'] = DciAction(env, func, cpu, n, G)
         elif ntype == 't':
             #!d['sim'] = simpy.Container(env)
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
@@ -410,7 +424,6 @@ def addProfiling(G):
     simpy.Container.instances = list()
     Dataq.instances = list()
     
-    G.graph['profile'] = True
 
     # Monkey patch PUT to count messages
     if not hasattr(Dataq,'monkey'):
@@ -452,6 +465,8 @@ def addProfiling(G):
             pass
     #!print('Dataq.instances = ',Dataq.instances)
 
+    G.graph['profileCollected'] = True
+    # END addProfiling
 
 
 
@@ -460,6 +475,7 @@ def addProfiling(G):
 def main():
     global monitor
     global cfg
+    default_end = 1e3
     #!print('EXECUTING: %s\n\n' % (string.join(sys.argv)))
     parser = argparse.ArgumentParser(
         description='My shiny new python program',
@@ -467,6 +483,11 @@ def main():
         )
     parser.add_argument('--version', action='version',  version='1.1.0')
     parser.add_argument('--profile', action='store_true')
+    parser.add_argument('--end', 
+                        help='Time (seconds) to end simulation [default=%s]'
+                        %(default_end),
+                        type = int,
+                        default = default_end,)
     parser.add_argument('--summarize', 
                         default=[],                        
                         action='append')
@@ -513,7 +534,7 @@ def main():
         printGraphSummary(G)
 
 
-    env.run(until=5*1e2)
+    env.run(until=args.end)
     print_summary(env,G, summarizeNodes=args.summarize)
 
     if args.graphite:

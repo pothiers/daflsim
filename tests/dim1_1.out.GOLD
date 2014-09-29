@@ -1,34 +1,35 @@
 WARNING: No simulation for some nodes.  (type=count): d=3
 #######################################################
-Simulation done at time: 500.
+Simulation done at time: 1000.
+Next event starts at: 1000
 Dataq use summary:
             Queue    Put   Max 
              Name  Count  Used Comment
-        dsan3.NSA:    97    97 
-      dsan3.q1535:    10     1 
-      dsan3.q1635:    10     1 
-      dsan3.q1735:    10     6 
-      dsan3.q1934:     5     1 
-      dsan3.q8335:   121    23 
-      dsan3.q8336:    97     1 
-      dsan3.q9435:    10     1 
-   dsas3.NOWHERE1:    10    10 
-      dsas3.q2535:    10     1 
-      dsas3.q2635:    10     1 
-      dsas3.q2735:    10     6 
-      dsas3.q9635:    10     1 
+        dsan3.NSA:     7     7 
+      dsan3.q1535:     2     1 
+      dsan3.q1635:     1     1 
+      dsan3.q1735:     3     1 
+      dsan3.q1934:     5     5 
+      dsan3.q8335:     8     4 
+      dsan3.q8336:     7     7 
+      dsan3.q9435:     1     1 
+   dsas3.NOWHERE1:     1     1 
+      dsas3.q2535:     2     1 
+      dsas3.q2635:     2     1 
+      dsas3.q2735:     2     2 
+      dsas3.q9635:     1     1 
       dtscp.q3135:     5     1 
       dtscp.q3335:     5     1 
-      dtscp.q3435:     5     1 
+      dtscp.q3435:     5     5 
       dtsct.q2135:     5     1 
       dtsct.q2335:     5     1 
-      dtsct.q2435:     5     1 
-      dtskp.q1235:     5     1 
-      dtskp.q1335:     5     1 
-      dtskp.q1435:     5     1 
+      dtsct.q2435:     5     5 
+      dtskp.q1235:     5     5 
+      dtskp.q1335:     0     0 WARNING: unused
+      dtskp.q1435:     0     0 WARNING: unused
      dtstuc.q6135:     5     1 
      dtstuc.q6235:     5     1 
-     dtstuc.q6435:     5     1 
+     dtstuc.q6435:     5     4 
 
 Store use summary (4):
 	 Edge ('instrument1', 'stb1'): putcount=5
@@ -37,6 +38,6 @@ Store use summary (4):
 	 Edge ('pipeline', 'stb2'): putcount=5
 
 Summary of node "NSA":
-  Queued 97 total items
-  Contains 25 unique items:
-	dsan3.UNKNOWN.000.png, dsan3.UNKNOWN.001.png, dsan3.UNKNOWN.002.png, dsan3.UNKNOWN.003.png, dsan3.UNKNOWN.004.png, dtscp.CP.000.png, dtscp.CP.001.png, dtscp.CP.002.png, dtscp.CP.003.png, dtscp.CP.004.png, dtsct.CT.000.png, dtsct.CT.001.png, dtsct.CT.002.png, dtsct.CT.003.png, dtsct.CT.004.png, dtskp.DECam.000.png, dtskp.DECam.001.png, dtskp.DECam.002.png, dtskp.DECam.003.png, dtskp.DECam.004.png, dtstuc.pipeline.000.png, dtstuc.pipeline.001.png, dtstuc.pipeline.002.png, dtstuc.pipeline.003.png, dtstuc.pipeline.004.png
+  Queued 7 total items
+  Contains 7 unique items:
+	dsan3.UNKNOWN.000.png, dsan3.UNKNOWN.001.png, dsan3.UNKNOWN.002.png, dsan3.UNKNOWN.003.png, dsan3.UNKNOWN.004.png, dtsct.CT.000.png, dtstuc.pipeline.000.png

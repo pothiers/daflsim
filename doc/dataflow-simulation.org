@@ -33,12 +33,14 @@ Every node must be of one of the following node types:
 Node attributes are stored in the dotfile (graphviz) nodes in the
 "comment" property. Format is: "name1='value2' name2='value2' ..."
 Possible attributes are:
-- type:: [default='a' if ACTION attribute present]
-- action:: [no default]
+- action:: [no default] Node that performs external function. Implies type='a'
 - delay::  [default=0]   (minutes)
 - duration:: [default=0]
-- host::   [default="NA-host"]
 - cron:: [default=None] Hack to allow simulating previous system
+- host::   [default="NA-host"]
+- source:: [no default] Name of data generator. Implies type='s'
+- type:: [no default, but value implied if ACTION and SOURCE given]
 
 If an ACTION is given, then "type='a'" is implied.
+If an SOURCE is given, then "type='s'" is implied.
 
