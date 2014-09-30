@@ -20,7 +20,7 @@ digraph G {
 	start -> b0;
 	a1 -> b3;
 	b2 -> a3;
-	//a3 -> a0;  // circular dependency
+	a3 -> a0;  // circular dependency
 	a3 -> end;
 	b3 -> end;
     

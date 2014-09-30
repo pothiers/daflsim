@@ -6,11 +6,12 @@ Dataq use summary:
              Name  Count  Used Comment
            H1.end:    10    10 
 
-Store use summary (10):
+Store use summary (11):
 	 Edge ('a0', 'a1'): putcount=5
 	 Edge ('a1', 'a2'): putcount=5
 	 Edge ('a1', 'b3'): putcount=5
 	 Edge ('a2', 'a3'): putcount=5
+	 Edge ('a3', 'a0'): putcount=5
 	 Edge ('b0', 'b1'): putcount=5
 	 Edge ('b1', 'b2'): putcount=5
 	 Edge ('b2', 'a3'): putcount=5
@@ -20,6 +21,5 @@ Store use summary (10):
 
 Summary of node "end":
   Queued 10 total items
-  Contains 5 unique items:
-
-	H1.sample.000.png,H1.sample.000.png, H1.sample.001.png,H1.sample.001.png, H1.sample.002.png,H1.sample.002.png, H1.sample.003.png,H1.sample.003.png, H1.sample.004.png,H1.sample.004.png
+  Contains 10 unique items:
+	H1.sample.000.png, H1.sample.000.png,H1.sample.000.png, H1.sample.001.png, H1.sample.001.png,H1.sample.001.png, H1.sample.002.png, H1.sample.002.png,H1.sample.002.png, H1.sample.003.png, H1.sample.003.png,H1.sample.003.png, H1.sample.004.png, H1.sample.004.png,H1.sample.004.png

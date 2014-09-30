@@ -99,24 +99,31 @@ def print_summary(env, G, summarizeNodes=[]):
                         getattr(si, 'putcount',-1)
                     ))
 
+    summaryTypes = [G.node[nid]['type'] for nid in summarizeNodes]
     
     for nid in summarizeNodes:
-        dq = G.node[nid]['sim']
+        inst = G.node[nid]['sim']
         #!print('%d of %s get slots are allocated.' 
-        #!      % (len(dq.get_queue),dq.capacity))
+        #!      % (len(inst.get_queue),inst.capacity))
         #!
         #!print('%d of %s put slots are allocated.' 
-        #!      % (len(dq.put_queue),dq.capacity))
+        #!      % (len(inst.put_queue),inst.capacity))
 
-        #print('NSA contains %d items'% (dq.level))
+        #print('NSA contains %d items'% (inst.level))
         print('\nSummary of node "%s":'%nid)
-        print('  Queued %d total items' % (len(dq.items),))
-        #!print('  Queued %d total items:\n\t%s'
-        #!      % (len(dq.items),
-        #!         '\n\t'.join(sorted(dq.items))))
-        print('  Contains %d unique items:' 
-              % (len(set(dq.items))))
-        print('\n\t%s'%(', '.join(sorted(set(dq.items)))))
+        if G.node[nid]['type'] in 'qt':
+            print('  Queued %d total items' % (len(inst.items),))
+            #!print('  Queued %d total items:\n\t%s'
+            #!      % (len(inst.items),
+            #!         '\n\t'.join(sorted(inst.items))))
+            print('  Contains %d unique items:' 
+                  % (len(set(inst.items))))
+            print('\t%s'%(', '.join(sorted(set(inst.items)))))
+        elif G.node[nid]['type'] == 's':
+            print('  Name=%s, host=%s, outCount=%s'
+                  % (inst.name, inst.host, inst.outCount))
+        else:
+            print('  <<no summary for nodes of type="%s"'%G.node[nid]['type'])
 
 
 
@@ -131,7 +138,10 @@ def feed_graphite(path, value, timestamp):
     if not monitor:
         return
     log = monitor.file 
-    print('%s %s %d' % (path, value, timestamp), file=log)
+    #print('%s %s %d' % (path, value, timestamp), file=log)
+    
+    # Format for google calc, not graphite
+    print('%s,%d,%d' % (path, timestamp, value), file=log)
 
 class Monitor():
     def __init__(self, outfile):
@@ -165,8 +175,9 @@ class DciInstrument():
         self.cpu = cpu
         self.count = count
         self.simType = 's'
+        self.outCount = 0
 
-        self. start_delay = cfg['image_delay']
+        self.start_delay = cfg['image_delay']
 
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
 
@@ -181,6 +192,7 @@ class DciInstrument():
             msg = '%s.%s.%03d.png' % (self.host,self.name, cid)
             for out_pipe in out_pipes:
                 out_pipe.put(msg)
+            self.outCount += 1
             logging.info('# t=%04d [%s]: Generated data: %s'
                   %(self.env.now, self.name, msg))
 
@@ -205,7 +217,7 @@ class DciAction():
 
         if len(in_pipes) > 1:
             logging.warning(
-                'More than 1 input to node "%s". Getting msg from all.'
+                'More than 1 input to node "%s". Getting msg from any.'
                 %(self.nid))
 
 
@@ -216,13 +228,18 @@ class DciAction():
             yield self.env.timeout(next_time)
 
             # Get event for message pipe
-            msgList = []
-            for in_pipe in in_pipes:
-                logging.debug('Action (%s) get from %s'%(self.nid,in_pipe))
-                res = yield in_pipe.get()
-                m = res[0] if isinstance(res,tuple) else res
-                msgList.append(m)
-            msg = ','.join(msgList)
+            #!msgList = []
+            #!for in_pipe in in_pipes:
+            #!    logging.debug('Action (%s) get from %s'%(self.nid,in_pipe))
+            #!    res = yield in_pipe.get()
+            #!    m = res[0] if isinstance(res,tuple) else res
+            #!    msgList.append(m)
+            #!msg = ','.join(msgList)
+
+            requests = [in_pipe.get() for in_pipe in in_pipes]
+            results = yield self.env.any_of(requests)
+            msg = ','.join(results.values())            
+
                 
             logging.debug('[t:%d] DELAY action "%s" for %d seconds'
                           %(self.env.now,  self.nid, self.start_delay))
@@ -235,7 +252,7 @@ class DciAction():
 
 
 
-def monitorQ(env, dataq, delay=1):
+def monitorQ(env, dataq, delay=60):
     if not monitor:
         return
     log = monitor.file

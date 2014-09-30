@@ -1,2 +1,3 @@
-WARNING More than 1 input to node "b3". Getting msg from all.
-WARNING More than 1 input to node "a3". Getting msg from all.
+WARNING More than 1 input to node "a0". Getting msg from any.
+WARNING More than 1 input to node "b3". Getting msg from any.
+WARNING More than 1 input to node "a3". Getting msg from any.
