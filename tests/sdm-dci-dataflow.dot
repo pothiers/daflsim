@@ -1,0 +1,212 @@
+
+// Connections to ports mostly from COMMENTS in crontabs
+
+digraph dfsim_dataflow {
+    rankdir="TD";
+    size="4,7";
+    dpi="300";
+    edge [len=1.0];
+
+    // UNKNOWNS !!!  Replace these with known module
+    node [shape="plaintext", fillcolor="red", style="filled"];
+    unk4 [label="UNKNOWN", tooltip="source='UNKNOWN', host='dsan3'"];
+    NOWHERE1 [label="NO PORT", fillcolor="yellow", shape="house",
+              tooltip="type='t',host='dsas3'"];
+    node [style=""];
+
+    // Other machines (I've traced into, but not through)
+    node [shape="box", peripheries="2"];
+    q6435 [label="dtstuc:6435", tooltip="host='dsan3', type='q',host='dtstuc'"];
+    q1535 [label="dsan3:1535", tooltip="host='dsan3', type='q'"];
+    q1735 [label="dsas3:1735", tooltip="host='dsan3', type='q'"];
+    // Forward references
+    q1635 [label="dsan3:1635", tooltip="host='dsan3', type='q'"];
+        
+    subgraph cluster_dtscp {
+        label="dtscp";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q3135 [label="dtscp:3135", tooltip="host='dtscp',type='q'"];
+        q3335 [label="dtscp:3335", tooltip="host='dtscp',type='q'"];
+        q3435 [label="dtscp:3435", tooltip="host='dtscp',type='q'"];
+        
+        node [shape="ellipse", peripheries="1"];
+        instrument4 [label="Instrument", shape="invhouse",
+                     tooltip="host='dtscp',source='CP'"];
+        stb4 [shape="box3d",label="iSTB", tooltip="host='dtscp',action='stb'"];
+
+        client4 [label="client", tooltip="host='dtscp',action='client'"];
+        bundle4 [label="bundle", tooltip="host='dtscp',action='bundle'"];
+
+        instrument4 -> stb4 -> q3135 -> client4 -> q3335 -> bundle4 -> q3435;
+    }
+
+    subgraph cluster_dtsct {
+        label="dtsct";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q2135 [label="dtsct:2135", tooltip="host='dtsct',type='q'"];
+        q2335 [label="dtsct:2335", tooltip="host='dtsct',type='q'"];
+        q2435 [label="dtsct:2435", tooltip="host='dtsct',type='q'"];
+
+        node [shape="ellipse", peripheries="1"];
+        instrument5 [label="Instrument", shape="invhouse",
+                     tooltip="host='dtsct',source='CT'"];
+        stb5 [shape="box3d",label="iSTB", tooltip="host='dtsct',action='stb'"];
+        client5 [label="client", tooltip="host='dtsct',action='client'"];
+        bundle5 [label="bundle", tooltip="host='dtsct',action='bundle'"];
+
+        instrument5 -> stb5 -> q2135 -> client5 -> q2335 -> bundle5 -> q2435;
+        
+    }
+
+
+    subgraph cluster_dsas3 {
+        label="dsas3";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q2535 [label="dsas3:2535", tooltip="host='dsas3',type='q',cron='*/10 *'"];
+        q2635 [label="dsas3:2635", tooltip="host='dsas3',type='q',cron='*/10 *'"];
+        q2735 [label="dsas3:2735", tooltip="host='dsas3',type='q',cron='*/10 *'"];
+        q9635 [label="dsas3:9635", tooltip="host='dsas3',type='q',cron='*/10 *'"];
+
+        node [shape="ellipse", peripheries="1"];
+        unbundle01 [label="unbundle)",
+                    tooltip="host='dsas3',action='unbundle',cron='*/10 *'"];
+        unbundle02 [label="unbundle",
+                    tooltip="host='dsas3',action='unbundle',cron='*/10 *'"];
+        unbundle03 [label="unbundle",
+                    tooltip="host='dsas3',action='unbundle',cron='*/10 *'"];
+        client01 [label="client",
+                  tooltip="host='dsas3',action='client',cron='*/5'"];
+        client02 [label="client",
+                  tooltip="host='dsas3',action='client',cron='*/5'"];
+        bundle01 [label="bundle",
+                  tooltip="host='dsas3',action='bundle',cron='*/5'"];
+
+        q1635 -> unbundle01 -> q9635;
+        q2435 -> unbundle02 -> q2735;
+        q3435 -> unbundle03 -> q2735;
+        
+        q2735 -> client01 -> q2535 -> bundle01 -> q2635;
+        q9635 -> client02 -> NOWHERE1;
+
+    }
+
+    subgraph cluster_dtskp {
+        label="dtskp";
+        rankdir="LR";
+        // On machine: dtskp  (Data Transfer Service - Kitt Peak)
+        style="solid";
+        node [shape="box", peripheries="2"];
+        q1235 [label="dtskp:1235",
+               tooltip="host='dtskp',type='q',cron='*/10 *'"];// Register
+        q1335 [label="dtskp:1335",
+               tooltip="host='dtskp',type='q',cron='*/10 *'"];// Bundle
+        q1435 [label="dtskp:1435",
+               tooltip="host='dtskp',type='q',cron='*/10 *'"];// Pending 
+        
+        node [peripheries="1"];
+        irod_dtskp [shape="box3d", label="iROD",
+                    tooltip="host='dtskp',type='d'"];
+        instrument1 [label="Instrument", shape="invhouse",
+                     tooltip="host='dtskp',source='DECam'"];
+        stb1 [shape="box3d",label="iSTB", tooltip="host='dtskp',action='stb'"];
+    
+        node [shape="ellipse", peripheries="1"];
+        client1 [label="client",
+                 tooltip="host='dtskp',action='client',cron='35 *'"];
+        bundle1 [label="bundle",
+                 tooltip="host='dtskp',action='bundle',cron='0 *'"];
+        
+        // Data-flow
+        //! DciArchT-> dtskp:p1235 [label="tracks"];
+        //! dtskp:p1235 -> client1 -> dtskp:p1335 -> bundle1 -> dtskp:p1435;
+        instrument1 -> stb1 -> q1235 -> client1 -> q1335 -> bundle1 -> q1435;
+        client1 -> irod_dtskp [label="ireg file"];
+        bundle1 -> irod_dtskp [label="ireg tarball"];
+    }
+    
+    subgraph cluster_dtstuc {
+        label="dtstuc";
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        q6135 [label="dtstuc:6135", tooltip="host='dtstuc',type='q'"];
+        q6235 [label="dtstuc:6235", tooltip="host='dtstuc',type='q'"];
+        q6435 [label="dtstuc:6435", tooltip="host='dtstuc',type='q'"];
+
+        node [shape="ellipse", peripheries="1"];
+        client3 [label="client", tooltip="host='dtstuc',action='client'"];
+        bundle3 [label="bundle", tooltip="host='dtstuc',action='bundle'"];
+        pipeline [shape="box3d",label="pipeline",
+                  tooltip="host='dtstuc',source='pipeline'"];
+        stb2 [shape="box3d",label="iSTB", tooltip="host='dtstuc',action='stb'"];
+        
+        pipeline -> stb2 [label="LPR"];
+        stb2 -> q6135 -> client3 -> q6235 -> bundle3 -> q6435;
+    }
+    
+
+    subgraph cluster_dsan3 {
+        label="dsan3";
+        rankdir="LR";
+        //  On machine: dsan3  
+        style="solid";
+
+        node [shape="box", peripheries="2"];
+        //! q1935; // The queue file for q1935 has timestamp from 2012.
+                   // Considered it dead
+        q1934 [label="dsan3:1934", tooltip="host='dsan3',type='q'"];
+        q8335 [label="dsan3:8335", tooltip="host='dsan3',type='q'"];
+        q9435 [label="dsan3:9435", tooltip="host='dsan3',type='q'"];
+        //! q4235;  // Define, not used
+        q8336 [label="dsan3:8336", tooltip="host='dsan3',type='q'"];
+        storage [label="Storage", shape="none", peripheries="1", style="",
+                 tooltip="host='dsan3',type='d'"];
+        irod_dsan3 [shape="box3d",peripheries="1",label="iROD",
+                    tooltip="host='dsan3',type='d'"];
+
+        NSA [label="NSA", shape="octagon", peripheries="2", color="blue",
+             tooltip="host='dsan3',type='q'"    ];
+
+        node [shape="ellipse", peripheries="1"];
+        client21 [label="client",
+                  tooltip="host='dsan3',action='client',cron='*/5 *'"];
+        client22 [label="client",
+                  tooltip="host='dsan3',action='client',cron='*/6 *'"];
+        client23 [label="client)",
+                  tooltip="host='dsan3',action='client',cron='* *'"];
+        bundle21 [label="bundle",
+                  tooltip="host='dsan3',action='bundle',cron='*/10 *'"];
+        unbundle21 [label="unbundle",
+                    tooltip="host='dsan3',action='unbundle',cron='*/10 *'"];
+        unbundle22 [label="unbundle",
+                    tooltip="host='dsan3',action='unbundle',cron='*/5 *'"];
+        unbundle23 [label="unbundle",
+                    tooltip="host='dsan3',action='unbundle',cron='*/10 *'"];
+        submit [label="submit_to_archive",
+                tooltip="host='dsan3',action='submit_to_archive',cron='*/2 *'"];
+        resubmit [label="resubmit_to_archive",
+                  tooltip="host='dsan3',action='resubmit',cron='* 10'"];
+        
+        q9435 -> client21 -> q8335 -> submit -> NSA;
+        submit -> q8336 -> resubmit -> q8335;
+            
+        q1735 -> client22 -> {q8335;q1535};
+        q1535 ->  bundle21 -> q1635;
+
+        {q1435;irod_dtskp} -> unbundle21 -> {q1735;storage;irod_dsan3};
+        {q6435;irod_dtskp} -> unbundle22 -> {q1735;storage;irod_dsan3};
+        {q2635;irod_dtskp} -> unbundle23 -> {q9435;storage;irod_dsan3};
+
+        q1934 -> client23 -> q8335;
+
+        unk4 -> q1934;
+    }
+
+    
+}
