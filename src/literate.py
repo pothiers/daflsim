@@ -144,10 +144,6 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
 
             
         # Validate dotfile
-        if 'host' not in ud:
-            raise RuntimeError(
-                'No "host" attribute found in node=%s %s ("%s")'
-                %(n,d,dotfile))
         if 'type' not in ud:
             raise RuntimeError(
                 'No "type" attribute found in node=%s %s ("%s")'
@@ -156,6 +152,12 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
             raise RuntimeError('Node %s: type="a", but no ACTION ("%s")'
                                %(n,d,dotfile))
 
+        if 'host' not in ud:
+            #!raise RuntimeError(
+            #!    'No "host" attribute found in node=%s %s ("%s")'
+            #!    %(n,d,dotfile))
+            ud['host'] = 'localhost' # !!!
+
         dd.update(ud)
         d['type'] = 'a' if ('action' in ud) else dd['type']
         if d.get('type') == 'a':
@@ -163,6 +165,7 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
                 raise Exception('Node "%s" as type="a", but no "action" field'
                                 %(n))
             d['action'] = dd['action']
+
 
         #!d['host'] = dd['host']
         #!d['cron'] = dd['cron']

@@ -3,6 +3,13 @@ see also ~/org/sdm.org
 
 Intended to span from STB output (first queue) to /submit_to_archive2.pl/
 
+* Overview
+The "DAta FLow SIMulator" - DAFLSIM ("daffle sim") simulates the flow
+of data given a data-flow diagram.
+
+It requires Python 3.4.
+
+
 * How graph edges related to simulation
 Each graph edge represents data flow between two simulated
 object. (see "node types") The types of the nodes on either end of an

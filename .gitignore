@@ -9,6 +9,7 @@ OBSOLETE/
 tests/*.out
 tests/*.clean
 tests/*.diff
+tests/*.err
 
 
 # Byte-compiled / optimized / DLL files
