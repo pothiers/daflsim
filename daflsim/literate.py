@@ -16,7 +16,6 @@ import logging
 from pprint import pprint
 
 # Graph stuff
-import matplotlib.pyplot as plt
 import networkx as nx
 
 # These are GRAPHVIZ attribute names subverted for our own use!
@@ -43,6 +42,8 @@ shape = dict(
     )
 
 def drawDfGraph(G,figTitle='SDM Dataflow'):
+    import matplotlib.pyplot as plt
+
     plt.ion()
 
     fig = plt.figure()
@@ -61,6 +62,7 @@ def drawDfGraph(G,figTitle='SDM Dataflow'):
     fig.suptitle(figTitle)    
     #f.canvas.mpl_connect('button_press_event',onmousedown)
     plt.show()
+
     return(fig)
     
 def validateDataflowGraph(G):
@@ -178,7 +180,6 @@ def loadDataflow(dotfile, outgraphml='foo.graphml'):
 def drawDataflow(dotfile, outgraphml):
     G = loadDataflow(dotfile, outgraphml)
     fig = drawDfGraph(G)
-    plt.show()
     return G,fig
 
 ##############################################################################
