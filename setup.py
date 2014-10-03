@@ -89,7 +89,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'daflsim=daflsim:main',
+            'daflsim=daflsim.daflsim:main',
         ],
     },
 )

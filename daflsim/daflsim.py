@@ -36,10 +36,10 @@ import json
 
 import simpy
 
-import actions 
-import literate
-import defaultCfg
-import cron
+from daflsim import actions 
+from daflsim import literate
+from daflsim import defaultCfg
+from daflsim import cron
 
 from pprint import pprint
 import networkx as nx

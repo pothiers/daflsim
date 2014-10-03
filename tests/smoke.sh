@@ -30,18 +30,18 @@ echo ""
 ########################################
 ## Very simple graph
 ##
-testCommand dim2_0 "dfsim.py graphviz-sample1.dot" "^\#" n
-testCommand dim2_1 "dfsim.py --summarize end --profile graphviz-sample1.dot" "^\#" n
+testCommand dim2_0 "daflsim graphviz-sample1.dot" "^\#" n
+testCommand dim2_1 "daflsim --summarize end --profile graphviz-sample1.dot" "^\#" n
 
 ########################################
 ## A real DCI graph
 ##
 dcidot=sdm-dci-dataflow.dot
-testCommand dim1_0 "dfsim.py $dcidot 2>&1" "^\#" n
+testCommand dim1_0 "daflsim $dcidot 2>&1" "^\#" n
 
 fg1=feed_graphite.out
-#!testCommand dim1_1 "dfsim.py --end 10000 --summarize NSA --profile $dcidot --graphite $fg1 2>&1" "^\#" n
-testCommand dim1_1 "dfsim.py --end 10000 --summarize NSA --profile $dcidot 2>&1" "^\#" n
+#!testCommand dim1_1 "daflsim --end 10000 --summarize NSA --profile $dcidot --graphite $fg1 2>&1" "^\#" n
+testCommand dim1_1 "daflsim --end 10000 --summarize NSA --profile $dcidot 2>&1" "^\#" n
 # Order varies
 #!testOutput out $fg1 '^\#' n
 
