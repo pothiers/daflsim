@@ -1,0 +1,1 @@
+./dfsim.py --loglevel=DEBUG --summarize end --summarize monitor --profile ../tests/graphviz-sample1.dot 

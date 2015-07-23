@@ -1,0 +1,6 @@
+#ipython --pdb -i tt.py
+#python tt.py
+
+#! ./dfsim.py --summarize NSA --summarize NOWHERE1 --profile ~/org/src-tangles/sdm-dci-dataflow.dot --graphite graphite.out
+daflsim --end 1000 --summarize NSA --profile ~/org/src-tangles/sdm-dci-dataflow.dot 
+

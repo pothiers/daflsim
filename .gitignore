@@ -1,4 +1,6 @@
 OBSOLETE/
+*.err.GOLD.sorted
+*.err.sorted
 
 # Backup files
 *~

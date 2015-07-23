@@ -1,0 +1,2 @@
+#!/bin/bash
+ipython --pdb -i ./dfsim.py -- --end 1000 --profile ~/org/src-tangles/sdm-dci-dataflow2.dot 
