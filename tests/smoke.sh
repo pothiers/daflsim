@@ -11,7 +11,7 @@ dir=`dirname $file`
 origdir=`pwd`
 cd $dir
 dir=`pwd`
-cd ../src
+cd ../daflsim
 srcdir=`pwd`
 cd $dir
 

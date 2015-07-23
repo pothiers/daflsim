@@ -5,13 +5,13 @@ Simulate data-flow from instruments to NSA (archive) .
 
 '''Resources we might simulate usage for:
 - CPU cycles
-- RAM 
+- RAM
 - disk space
 - network bandwidth
 
 Simulate modules on significant machines from all 5 sites:
-  - KP 
-  - TU 
+  - KP
+  - TU
   - CT
   - CP
   - LS
@@ -25,10 +25,8 @@ Simulate modules on significant machines from all 5 sites:
 '''
 
 import sys
-import string
 import argparse
 import logging
-from enum import Enum
 import random
 from collections import defaultdict
 import functools
@@ -36,57 +34,57 @@ import json
 
 import simpy
 
-from daflsim import actions 
+from daflsim import actions
 from daflsim import literate
 from daflsim import defaultCfg
 from daflsim import cron
 
-from pprint import pprint
 import networkx as nx
 
 cfg = defaultCfg.cfg
-monitor = None # !!!
+monitor = None  # !!!
+
 
 def stepTraceFunc(event):
     import inspect
-    if isinstance(event,simpy.Process):
-        xtra = 'Waiting for %s'%(event.target,)
+    if isinstance(event, simpy.Process):
+        xtra = 'Waiting for %s' % (event.target,)
         generatorName = event._generator.__name__
-        #!generatorSignature = inspect.signature(event._generator)
         geninfo = inspect.getgeneratorstate(event._generator)
-        print('TRACE %s: event.Process: gen=%s(locals=%s) (value=%s) %s'  
+        print('TRACE %s: event.Process: gen=%s(locals=%s) (value=%s) %s'
               % (event.env.now, generatorName, geninfo, event.value, xtra))
 
 
-def print_summary(env, G, summarizeNodes=[]):
+def print_summary(env, G, summarizeNodes=None):
+    if summarizeNodes == None:
+        summarizeNodes = []
     print('#'*55)
-    print('Simulation done at time: %d.'%(env.now))
-    print('Next event starts at: %s'%(env.peek()))
+    print('Simulation done at time: %d.' % (env.now))
+    print('Next event starts at: %s' % (env.peek()))
 
     # print profile if we collected data
-    if G.graph.get('profileCollected',False):
-        qmap = dict() # qmap[name] = Dataq
-        #!for dq in Dataq.instances:
-        for n,d in G.nodes_iter(data=True):
-            if ('sim' in d) and isinstance(d['sim'],Dataq):
+    if G.graph.get('profileCollected', False):
+        qmap = dict()  # qmap[name] = Dataq
+        for (n, d) in G.nodes_iter(data=True):
+            if ('sim' in d) and isinstance(d['sim'], Dataq):
                 instance = d['sim']
-                if not hasattr(instance,'putcount'):
-                    setattr(instance,'putcount',0)
-                if not hasattr(instance,'hiwater'):
-                    setattr(instance,'hiwater',0)
+                if not hasattr(instance, 'putcount'):
+                    setattr(instance, 'putcount', 0)
+                if not hasattr(instance, 'hiwater'):
+                    setattr(instance, 'hiwater', 0)
 
                 qmap[d['sim'].name] = d['sim']
 
         print('Dataq use summary:')
-        print('  %15s  %5s %5s %s'%('Queue', 'Put',   'Max',  ''))
-        print('  %15s  %5s %5s %s'%('Name' , 'Count', 'Used', 'Comment'))
+        print('  %15s  %5s %5s %s' % ('Queue', 'Put',   'Max',  ''))
+        print('  %15s  %5s %5s %s' % ('Name' , 'Count', 'Used', 'Comment'))
         for name in sorted(qmap.keys()):
             print('  %15s: %5d %5d %s'
-                  %(name,
-                    qmap[name].putcount,
-                    qmap[name].hiwater,
-                    'WARNING: unused' if qmap[name].hiwater == 0 else ''
-                ))
+                  % (name,
+                     qmap[name].putcount,
+                     qmap[name].hiwater,
+                     'WARNING: unused' if qmap[name].hiwater == 0 else ''
+                 ))
         print()
 
         siList = simpy.Store.instances
@@ -99,24 +97,21 @@ def print_summary(env, G, summarizeNodes=[]):
                         getattr(si, 'putcount',-1)
                     ))
 
-    summaryTypes = [G.node[nid]['type'] for nid in summarizeNodes]
-    
     for nid in summarizeNodes:
         inst = G.node[nid]['sim']
-        #!print('%d of %s get slots are allocated.' 
+        #!print('%d of %s get slots are allocated.'
         #!      % (len(inst.get_queue),inst.capacity))
         #!
-        #!print('%d of %s put slots are allocated.' 
+        #!print('%d of %s put slots are allocated.'
         #!      % (len(inst.put_queue),inst.capacity))
 
-        #print('NSA contains %d items'% (inst.level))
         print('\nSummary of node "%s":'%nid)
         if G.node[nid]['type'] in 'qt':
             print('  Queued %d total items' % (len(inst.items),))
             #!print('  Queued %d total items:\n\t%s'
             #!      % (len(inst.items),
             #!         '\n\t'.join(sorted(inst.items))))
-            print('  Contains %d unique items:' 
+            print('  Contains %d unique items:'
                   % (len(set(inst.items))))
             print('\t%s'%(', '.join(sorted(set(inst.items)))))
         elif G.node[nid]['type'] == 's':
@@ -126,27 +121,25 @@ def print_summary(env, G, summarizeNodes=[]):
             print('  <<no summary for nodes of type="%s"'%G.node[nid]['type'])
 
 
-
-
 # Example plaintext feed to Graphite:
 #   <metric path> <metric value> <metric timestamp>.
 #   echo "local.random.diceroll 4 `date +%s`" | nc -q0 ${SERVER} ${PORT}
-#   
+#
 #   timestamp:: Unix epoch (seconds since 1970-01-01 00:00:00 UTC)
 #   value:: float
 def feed_graphite(path, value, timestamp):
     if not monitor:
         return
-    log = monitor.file 
+    log = monitor.file
     #print('%s %s %d' % (path, value, timestamp), file=log)
-    
+
     # Format for google calc, not graphite
     print('%s,%d,%d' % (path, timestamp, value), file=log)
 
 class Monitor():
     def __init__(self, outfile):
         self.file = outfile
-        
+
     def close(self):
         if self.file:
             self.file.close()
@@ -163,7 +156,7 @@ class Dataq(simpy.Store):
         Dataq.instances.append(self)
 
 
-    
+
 class DciInstrument():
     '''Generates data records, such as pictures. '''
 
@@ -182,7 +175,7 @@ class DciInstrument():
         logging.debug('[DciInstrument] Initializing (%s)'%(self.name,))
 
     def generateData(self, out_pipes):
-        '''Generates data records such as pictures, but could be any instrument 
+        '''Generates data records such as pictures, but could be any instrument
         in the telescope. '''
         name = self.name
         logging.debug('Starting "%s" INSTRUMENT to generate %d files.'
@@ -238,9 +231,9 @@ class DciAction():
 
             requests = [in_pipe.get() for in_pipe in in_pipes]
             results = yield self.env.any_of(requests)
-            msg = ','.join(results.values())            
+            msg = ','.join(results.values())
 
-                
+
             logging.debug('[t:%d] DELAY action "%s" for %d seconds'
                           %(self.env.now,  self.nid, self.start_delay))
             yield self.env.timeout(self.start_delay)
@@ -255,10 +248,9 @@ class DciAction():
 def monitorQ(env, dataq, delay=60):
     if not monitor:
         return
-    log = monitor.file
     while True:
         yield env.timeout(delay)
-        feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now) 
+        feed_graphite('dataq.%s'%dataq.name, len(dataq.items), env.now)
 
 
 def printGraphSummary(G):
@@ -272,7 +264,7 @@ def printGraphSummary(G):
         in_pipes = [d0['pipe']
                     for u,v,d0 in G.in_edges(n,data=True)
                     if ('pipe' in d0)]
-        out_pipes = [d1['pipe'] 
+        out_pipes = [d1['pipe']
                      for u,v,d1 in G.out_edges(n,data=True)
                      if ('pipe' in d1) ]
         logging.info('Node %8s: num in,out-pipes=(%d,%d)'
@@ -283,20 +275,16 @@ def printGraphSummary(G):
         etype = G.node[u]['type'] + G.node[v]['type']
         edgeTypeCnt[etype] += 1 # diag!!!
 
-    logging.info('nodeTypeCnt: %s' 
+    logging.info('nodeTypeCnt: %s'
           % ', '.join(['%s=%d'%(k,v) for (k,v) in nodeTypeCnt.items()]))
 
-    logging.info('edgeTypeCnt: %s' 
+    logging.info('edgeTypeCnt: %s'
           % ', '.join(['%s=%d'%(k,v) for (k,v) in edgeTypeCnt.items()]))
 
 
 def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     random.seed(42) # make it reproducible?
-    nqLUT = dict() # nqLUT[node] = Dataq instance
-    nsLUT = dict() # nsLUT[node] = Source event
     createdProcesses = 0
-
-    nodeLUT = dict() # nodeLUT[node] = simInstance
 
     G = literate.loadDataflow(dotfile,'sdm-data-flow.graphml')
     if draw:
@@ -321,7 +309,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
             d['sim'] = Dataq(env,'%s.%s'%(d['host'],n))
         elif ntype == 'a':
             if hasattr(actions,d['action']):
-                func = eval('actions.'+d['action']) 
+                func = eval('actions.'+d['action'])
             else:
                 func = functools.partial(actions.nop,name=d['action'])
             d['sim'] = DciAction(env, func, cpu, n, G)
@@ -334,7 +322,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     #!if len(noNodeSimCnt) > 0:
     #!    print('WARNING: No simulation for some nodes.  (type=count): %s'
     #!          %(', '.join(['%s=%d'%(k,v) for k,v in noNodeSimCnt.items()])))
-    
+
     if profile:
         addProfiling(G)
 
@@ -344,10 +332,10 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     # Create "link" elements of simulation based upon type of edge
     # Edge type is ordered character pair of black/white node type.
     for u,v,d in G.edges_iter(data=True):
-        ud = G.node[u]	
-        vd = G.node[v]	
+        ud = G.node[u]
+        vd = G.node[v]
         etype = ud['type'] + vd['type']
-        
+
         # Map edge types to Simpy "connection instances" (not exhaustive)
         noEdgeSimCnt = defaultdict(int) # dict[ntype] = count
         if etype == 'sa':
@@ -376,9 +364,9 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
     #!if len(noEdgeSimCnt) > 0:
     #!    print('WARNING: No simulation for some edges.  (type=count): %s'
     #!          %(', '.join(['%s=%d'%(k,v) for k,v in noEdgeSimCnt.items()])))
-        
-            
-    
+
+
+
     ##
     ## Create simulation processes
     ##
@@ -386,7 +374,7 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
         cpu = cpuLUT.setdefault(d['host'], simpy.Resource(env))
 
         if d.get('type') == 's':
-            out_pipes = [d1['pipe'] 
+            out_pipes = [d1['pipe']
                          for u,v,d1 in G.out_edges(n,data=True)
                          if ('pipe' in d1) ]
 
@@ -403,13 +391,13 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
             in_pipes = [d0['pipe']
                         for u0,v0,d0 in G.in_edges(n,data=True)
                         if ('pipe' in d0)]
-            out_pipes = [d1['pipe'] 
+            out_pipes = [d1['pipe']
                          for u,v,d1 in G.out_edges(n,data=True)
                          if ('pipe' in d1) ]
             env.process(d['sim'].generateAction(in_pipes, out_pipes))
             logging.info('Create ACTION generator for %s. in=%s out=%s'
                   %(n,
-                    [r.__class__.__name__ for r in in_pipes], 
+                    [r.__class__.__name__ for r in in_pipes],
                     [r.__class__.__name__ for r in out_pipes]))
             createdProcesses += 1
         elif d.get('type') == 't':
@@ -428,16 +416,16 @@ def setupDataflowNetwork(env, dotfile, draw=False, profile=False):
 
     logging.debug('%d processes started'%(createdProcesses))
     logging.debug('Next event starts at: %s'%(env.peek()))
-    
+
     return G
     # END setupDataflowNetwork()
 
 
-    
+
 def addProfiling(G):
     simpy.Container.instances = list()
     Dataq.instances = list()
-    
+
 
     # Monkey patch PUT to count messages
     if not hasattr(Dataq,'monkey'):
@@ -497,15 +485,15 @@ def main():
         )
     parser.add_argument('--version', action='version',  version='1.1.0')
     parser.add_argument('--profile', action='store_true')
-    parser.add_argument('--end', 
+    parser.add_argument('--end',
                         help='Time (seconds) to end simulation [default=%s]'
                         %(default_end),
                         type = int,
                         default = default_end,)
-    parser.add_argument('--summarize', 
-                        default=[],                        
+    parser.add_argument('--summarize',
+                        default=[],
                         action='append')
-    parser.add_argument('--cfg', 
+    parser.add_argument('--cfg',
                         help='Configuration file',
                         type=argparse.FileType('r') )
     parser.add_argument('infile', type=argparse.FileType('r'),
@@ -537,24 +525,21 @@ def main():
 
     if args.cfg:
         cfg = json.load(args.cfg)
-    
+
     if args.graphite:
         monitor = Monitor(args.graphite)
 
     env = simpy.Environment()
     G = setupDataflowNetwork(env, args.infile, profile=args.profile)
-    
+
     if args.loglevel == 'DEBUG':
         printGraphSummary(G)
 
-
     env.run(until=args.end)
-    print_summary(env,G, summarizeNodes=args.summarize)
+    print_summary(env, G, summarizeNodes=args.summarize)
 
     if args.graphite:
         monitor.close()
 
 if __name__ == '__main__':
     main()
-
-        
